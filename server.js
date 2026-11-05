@@ -105,6 +105,18 @@ const CLEAN = {
 };
 
 const load = loadReal, save = saveReal;
+// compra parcelada cadastrada à mão com o mesmo nome de um lançamento: copia o valor do lançamento
+const normTit = t => String(t || '').replace(/\s*\(\d+\/\d+\)\s*$/, '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+function lancamentoDe(db, p) {
+  const n = normTit(p.desc); if (n.length < 3) return null;
+  const cands = db.gastos.filter(g => { const t = normTit(g.desc); return t && (t === n || (n.length >= 4 && t.length >= 4 && (t.includes(n) || n.includes(t)))); });
+  return cands.sort((a, b) => ((b.mes || b.data) > (a.mes || a.data) ? 1 : -1))[0] || null;
+}
+function sincronizarParcelas(db) {
+  let mudou = false;
+  for (const p of db.parceladas || []) { const g = lancamentoDe(db, p); if (g && g.valor !== p.valorParcela) { p.valorParcela = g.valor; mudou = true; } }
+  return mudou;
+}
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/manifest+json', '.webmanifest': 'application/manifest+json' };
 
 const server = http.createServer(async (req, res) => {
@@ -133,14 +145,14 @@ const server = http.createServer(async (req, res) => {
       if (!quem) return send(res, 401, { erro: 'login' });
       const demo = quem.startsWith('demo-');
       if (demo && !demos.has(quem)) { if (demos.size > 200) demos.clear(); demos.set(quem, dadosExemplo()); }
-      const load = demo ? () => demos.get(quem) : loadReal, save = demo ? d => demos.set(quem, d) : saveReal;
+      const load = demo ? () => demos.get(quem) : loadReal, save = demo ? d => demos.set(quem, d) : d => { sincronizarParcelas(d); saveReal(d); };
       const comFlag = d => Object.assign(d, { gmailLigado: !demo && !!(GMAIL_USER && GMAIL_PASS), demo });
       const db = load();
       if (demo && req.method !== 'GET' && !p.startsWith('/api/gmail') && !p.startsWith('/api/icon')) return send(res, 403, { erro: 'Modo demonstração: só para visualização' });
       const parts = p.split('/').filter(Boolean); // ['api', coll, id?]
       const coll = parts[1], id = parts[2];
 
-      if (coll === 'state' && req.method === 'GET') return send(res, 200, comFlag(db));
+      if (coll === 'state' && req.method === 'GET') { if (sincronizarParcelas(db)) save(db); return send(res, 200, comFlag(db)); }
       if (coll === 'gmail' && req.method === 'POST') { if (!demo) await rodarGmail(); return send(res, 200, comFlag(load())); }
       if (coll === 'icon' && demo) return send(res, 200, { ok: true });
 

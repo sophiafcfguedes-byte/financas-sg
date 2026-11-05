@@ -177,13 +177,17 @@ function calc(m){
   const c=db.config, renda=rendaDe(m);
   const pagos=new Set(db.pagos[m]||[]);
   const fixas=db.fixas.map(f=>({...f,pago:pagos.has(f.id)})).sort((a,b)=>a.dia-b.dia);
-  const parcelas=db.parceladas.map(p=>({...p,n:diffMes(p.primeiroMes,m)+1})).filter(p=>p.n>=1&&p.n<=p.total);
+  const normTit=t=>String(t||'').replace(/\s*\(\d+\/\d+\)\s*$/,'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'');
+  const gMes=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===m);
+  const casa=p=>{const n=normTit(p.desc);return n.length>=3&&gMes.find(g=>{const t=normTit(g.desc);return t===n||(n.length>=4&&t.length>=4&&(t.includes(n)||n.includes(t)))})};
+  // parcela cadastrada à mão que já veio na fatura deste mês: usa o valor do lançamento e não soma duas vezes
+  const parcelas=db.parceladas.map(p=>({...p,n:diffMes(p.primeiroMes,m)+1})).filter(p=>p.n>=1&&p.n<=p.total).map(p=>{const g=casa(p);return g?{...p,valorParcela:g.valor,naFatura:g.id}:p});
   const gastos=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===m).sort((a,b)=>b.data.localeCompare(a.data));
   // boleto de fatura do cartão: as compras já estão em Gastos, então não soma de novo
   const chFat=new Set(db.gastos.filter(g=>g.fonte==='fatura'&&g.chave).map(g=>g.chave.split('|')[0]));
   const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).map(b=>({...b,ehFatura:b.ehFatura||chFat.has(b.msgId)||chFat.has(b.codigo)||/fatura|cart[aã]o/i.test(b.desc+' '+(b.assunto||''))&&db.gastos.some(g=>g.fonte==='fatura')})).sort((a,b)=>a.venc.localeCompare(b.venc));
   const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
-  const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.reduce((s,p)=>s+p.valorParcela,0);
+  const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.filter(p=>!p.naFatura).reduce((s,p)=>s+p.valorParcela,0);
   const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);
   const tri=0;
   const gastoTotal=Math.max(0,tFix+tPar+tGas+tBol-tri);
@@ -246,8 +250,8 @@ function telaFixas(c){
 }
 function telaGastos(c){
   return topo('Gastos',mesNome(mes))+`
-  ${(()=>{const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m);const tot=c.tPar+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
-  ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button><div class="gacoes" style="padding:0 0 8px"><button class="ga ${p.dividido?'on':''}" onclick="dividirParcela('${p.id}')">${p.dividido?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button><button class="ga del" onclick="apagar('parceladas','${p.id}')">Excluir</button></div></div>`).join('')}
+  ${(()=>{const ligados=new Set(c.parcelas.map(p=>p.naFatura).filter(Boolean));const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m&&!ligados.has(x.g.id));const tot=c.parcelas.reduce((s,p)=>s+p.valorParcela,0)+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
+  ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total}${p.naFatura?' · valor da fatura':''} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button><div class="gacoes" style="padding:0 0 8px">${(()=>{const gg=p.naFatura&&db.gastos.find(x=>x.id===p.naFatura);const dv=gg?gg.dividido:p.dividido;return`<button class="ga ${dv?'on':''}" onclick="${gg?`dividir('${gg.id}')`:`dividirParcela('${p.id}')`}">${dv?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button>`})()}<button class="ga del" onclick="apagar('parceladas','${p.id}')">Excluir</button></div></div>`).join('')}
   ${fp.map(({g,m})=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(m[1])}</b><small>Parcela ${+m[2]} de ${+m[3]} · da fatura · até ${mesNome(addMes(mes,+m[3]-+m[2])).toLowerCase()}</small></div><span class="v">${brl(g.valor)}</span></button><div class="gacoes" style="padding:0 0 8px"><button class="ga ${g.dividido?'on':''}" onclick="dividir('${g.id}')">${g.dividido?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button><button class="ga del" onclick="apagarGasto('${g.id}')">Excluir</button></div></div>`).join('')}
   ${!c.parcelas.length&&!fp.length?'<div class="sm">Nenhuma parcela neste mês.</div>':''}`})()}
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
