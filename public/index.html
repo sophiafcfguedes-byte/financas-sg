@@ -86,7 +86,7 @@ button,input,select{font:inherit;color:inherit}
 .split{height:18px;border-radius:9px;display:flex;overflow:hidden}
 .fab{position:fixed;right:max(20px,calc(50% - 220px));bottom:calc(96px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:28px;border:0;background:var(--goldBtn);color:#fff;font-size:30px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5;cursor:pointer}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--nav);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
 nav button{height:64px;border:0;background:none;font-size:11px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 nav button.on{color:var(--navy)}
 nav svg{width:22px;height:22px}
@@ -208,7 +208,7 @@ function topo(titulo,sub){
 }
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
-  const prox=[...c.fixas.filter(f=>!f.pago).map(f=>({nome:f.nome,valor:f.valor,dia:+f.dia,tipo:'fixa'})),...c.boletos.filter(b=>!b.pago).map(b=>({nome:b.desc,valor:b.valor,dia:+b.venc.slice(8),tipo:'bol'}))].sort((a,b)=>a.dia-b.dia).slice(0,3);
+  const prox=[...c.fixas.filter(f=>!f.pago).map(f=>({nome:f.nome,valor:f.valor,dia:+f.dia,tipo:'fixa',id:f.id})),...c.boletos.filter(b=>!b.pago).map(b=>({nome:b.desc,valor:b.valor,dia:+b.venc.slice(8),tipo:'bol',id:b.id,b}))].sort((a,b)=>a.dia-b.dia);
   const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
   return `<div class="top"><div><small>${mesNome(mes)}</small><h1>Oi, Sophia</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
   <section class="hero">
@@ -223,8 +223,10 @@ function telaInicio(c){
     <div class="tile"><span>Variáveis</span><b>${brl(Math.max(0,c.tGas+c.tPar+c.tBol-c.tri))}</b></div>
     <div class="tile ok"><span>Guardado</span><b>${brl(c.guardado)}</b></div>
   </div>
-  <div class="sec"><div class="sec-h"><span>Vence em breve</span></div>
-    <div class="list">${prox.length?prox.map(p=>{const d=p.dia-hojeD.getDate();const q=noMes&&d>=0&&d<=3;return`<div class="item"><div class="t"><b>${esc(p.nome)}</b><small class="${q?'warn':''}">${noMes&&d<0?'Venceu dia '+p.dia:q?(d===0?'Vence hoje':'Vence em '+d+(d===1?' dia':' dias')):'Vence dia '+p.dia}</small></div><span class="v">${brl(p.valor)}</span></div>`}).join(''):'<div class="empty">Nada para pagar este mês.</div>'}</div>
+  <div class="sec"><div class="sec-h"><span>A pagar</span><b>${brl(c.faltaPagar)}</b></div>
+    <div class="list">${prox.length?prox.map(p=>{const d=p.dia-hojeD.getDate();const q=noMes&&d>=0&&d<=3;const atr=noMes&&d<0;return`<button class="item" onclick="${p.tipo==='bol'?`acaoBoleto('${p.id}')`:`formFixa('${p.id}')`}"><div class="t"><b>${esc(p.nome)}</b><small class="${q||atr?'warn':''}">${atr?'Venceu dia '+p.dia:q?(d===0?'Vence hoje':'Vence em '+d+(d===1?' dia':' dias')):'Vence dia '+p.dia}${p.b?.fonte==='gmail'?' · do Gmail':''}${p.b?.aviso?' · '+esc(p.b.aviso):''}</small></div><span class="v">${brl(p.valor)}</span></button>`}).join(''):'<div class="empty">Nada para pagar este mês.</div>'}</div>
+    <div class="row2"><button class="btn ghost" onclick="formBoleto()">+ Boleto</button>${db.gmailLigado?`<button class="btn ghost" id="lerGmail" onclick="lerGmail()">Ler Gmail</button>`:'<span></span>'}</div>
+    ${db.gmailLigado?`<div class="sm" style="text-align:center">${db.gmail?.erro?`<span class="warn">Erro ao ler o Gmail: ${esc(db.gmail.erro)}</span>`:db.gmail?.ultima?'Gmail lido às '+new Date(db.gmail.ultima).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · lê sozinho a cada 30 min':''}</div>`:''}
   </div>`;
 }
 function telaFixas(c){
@@ -300,22 +302,27 @@ function render(){
     document.querySelector('nav')?.remove();document.querySelector('.fab')?.remove();
     const p=$('#pin');p.focus();p.onkeydown=e=>{if(e.key==='Enter')entrar()};return}
   const c=calc(mes);
-  const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,boletos:telaBoletos,poupanca:telaPoupanca};
+  const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,poupanca:telaPoupanca};
   app.innerHTML=`<div class="wrap">${telas[tab](c)}</div>`;
   if(!document.querySelector('nav')){
     const n=document.createElement('nav');document.body.appendChild(n);
     const f=document.createElement('button');f.className='fab';f.setAttribute('aria-label','Lançar gasto');f.textContent='+';f.onclick=()=>formGasto();document.body.appendChild(f);
   }
-  const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',graficos:'Gráficos',boletos:'Boletos',poupanca:'Poupança'};
+  const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',graficos:'Gráficos',poupanca:'Poupança'};
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
-function ir(t){tab=t;render();scrollTo(0,0);if(t==='boletos')carregar()}
+function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
 function mudaMes(n){mes=addMes(mes,n);render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
 async function mudaCat(id,cat){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
+function acaoBoleto(id){const b=db.boletos.find(x=>x.id===id);if(!b)return;
+  abrir(`<h2>${esc(b.desc)}</h2><div class="sm">Vence ${dataBR(b.venc)}${b.ehFatura?' · as compras já estão em Gastos':''}</div><div style="font-size:28px;font-weight:800">${brl(b.valor)}</div>
+  ${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código de barras</button>`:''}
+  <button class="btn" onclick="pagarBoleto('${id}',true).then(fechar)">Marcar como pago</button>
+  <button class="btn ghost" onclick="formBoleto('${id}')">Editar</button><button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v});render()}
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
