@@ -19,10 +19,10 @@ const SECRET_FILE = path.join(DATA_DIR, '.secret');
 if (!fs.existsSync(SECRET_FILE)) fs.writeFileSync(SECRET_FILE, crypto.randomBytes(32).toString('hex'), { mode: 0o600 });
 const SECRET = fs.readFileSync(SECRET_FILE, 'utf8').trim();
 
-const COLLECTIONS = ['fixas', 'gastos', 'parceladas', 'boletos', 'reserva'];
+const COLLECTIONS = ['entradas', 'fixas', 'gastos', 'parceladas', 'boletos', 'reserva'];
 const EMPTY = {
   config: { renda: 0, pctEssenciais: 50, pctLivre: 25 },
-  fixas: [], gastos: [], parceladas: [], boletos: [], reserva: [],
+  entradas: [], fixas: [], gastos: [], parceladas: [], boletos: [], reserva: [],
   pagos: {} // { "2026-11": ["idDaFixa", ...] }
 };
 
@@ -78,6 +78,7 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 
 // limpa e valida cada tipo de registro
 const CLEAN = {
+  entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
   gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20) }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
@@ -118,8 +119,10 @@ const server = http.createServer(async (req, res) => {
 
       if (coll === 'config' && req.method === 'PUT') {
         const b = await body(req);
-        const essen = Math.min(75, Math.max(0, num(b.pctEssenciais ?? db.config.pctEssenciais)));
-        db.config = { renda: num(b.renda ?? db.config.renda), pctEssenciais: essen, pctLivre: Math.round((75 - essen) * 100) / 100 };
+        // renda varia: guardada por mês
+        db.rendas = db.rendas || {};
+        if (db.config.renda && !Object.keys(db.rendas).length) db.rendas[new Date().toISOString().slice(0, 7)] = db.config.renda;
+        db.rendas[ym(b.mes)] = num(b.renda);
         save(db); return send(res, 200, comFlag(db));
       }
 

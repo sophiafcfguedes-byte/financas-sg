@@ -157,8 +157,10 @@ async function iconeBonito(){
 async function salvar(url,method,data){db=await api(url,method,data);fechar();render()}
 
 // ---------- cálculos do mês ----------
+function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(m)).sort((a,b)=>b.data.localeCompare(a.data))}
+function rendaDe(m){return entradasDe(m).reduce((s,e)=>s+e.valor,0)+((db.rendas||{})[m]||0)}
 function calc(m){
-  const c=db.config, renda=c.renda||0;
+  const c=db.config, renda=rendaDe(m);
   const pagos=new Set(db.pagos[m]||[]);
   const fixas=db.fixas.map(f=>({...f,pago:pagos.has(f.id)})).sort((a,b)=>a.dia-b.dia);
   const parcelas=db.parceladas.map(p=>({...p,n:diffMes(p.primeiroMes,m)+1})).filter(p=>p.n>=1&&p.n<=p.total);
@@ -175,7 +177,7 @@ function calc(m){
   const porCat={};gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
   const acumulado=db.reserva.filter(r=>r.mes<=m).reduce((s,r)=>s+r.valor,0);
   return{renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
-    sobra:renda-gastoTotal-meta,metaEss:renda*c.pctEssenciais/100,metaLivre:renda*c.pctLivre/100};
+    sobra:renda-gastoTotal-meta};
 }
 
 // ---------- ícones ----------
@@ -205,9 +207,9 @@ function telaInicio(c){
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row"><div><span class="lbl">Recebo</span><b>${hid(c.renda)}</b></div><div><span class="lbl">Gastei</span><b>${hid(c.gastoTotal)}</b></div><div><span class="lbl">Falta pagar</span><b>${hid(c.faltaPagar)}</b></div></div>
+    <div class="row"><button onclick="formRenda()" aria-label="Editar renda do mês" style="display:flex;flex-direction:column;gap:2px;padding:0;border:0;background:none;color:#fff;text-align:left;cursor:pointer"><span class="lbl" style="display:flex;align-items:center;gap:4px">Recebo <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b>${hid(c.renda)}</b></button><div><span class="lbl">Gastei</span><b>${hid(c.gastoTotal)}</b></div><div><span class="lbl">Falta pagar</span><b>${hid(c.faltaPagar)}</b></div></div>
   </section>
-  ${!c.renda?`<button class="add" onclick="formRenda()">Informar minha renda</button>`:''}
+  <button class="add" onclick="formRenda()">${c.renda?'+ Recebi dinheiro':'+ Registrar o que recebi'}</button>
   <div class="grid3">
     <div class="tile"><span>Fixas</span><b>${brl(c.tFix)}</b></div>
     <div class="tile"><span>Variáveis</span><b>${brl(c.tGas+c.tPar+c.tBol)}</b></div>
@@ -245,22 +247,17 @@ function telaBoletos(c){
   ${db.gmailLigado?`<div class="sm" style="text-align:center">${db.gmail?.erro?`<span class="warn">Erro ao ler o Gmail: ${esc(db.gmail.erro)}</span>`:db.gmail?.ultima?'Gmail lido às '+new Date(db.gmail.ultima).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · lê sozinho a cada 30 min':'Lendo o Gmail…'}</div><button class="btn ghost" id="lerGmail" onclick="lerGmail()">Ler Gmail agora</button>`:'<div class="sm" style="text-align:center">Leitura do Gmail ainda não configurada.</div>'}`;
 }
 function telaPoupanca(c){
-  const cf=db.config, pg=c.meta?Math.min(100,c.guardado/c.meta*100):0;
-  const pe=c.metaEss?Math.min(100,c.ess/c.metaEss*100):0, pl=c.metaLivre?Math.min(100,c.livre/c.metaLivre*100):0;
-  return topo('Poupança',`Sua renda: ${hid(c.renda)}`)+`
-  <div class="split"><i style="width:25%;background:#16274A"></i><i style="width:${cf.pctEssenciais}%;background:#9FB0CF"></i><i style="width:${cf.pctLivre}%;background:#C9A45C"></i></div>
-  <div class="card dark"><div class="h"><div><b>Reserva de emergência</b><small>25% fixo · obrigatório</small></div><b>${brl(c.meta)}</b></div>
+  const pg=c.meta?Math.min(100,c.guardado/c.meta*100):0;
+  return topo('Poupança',`Renda de ${MESES[+mes.slice(5)-1]}: ${hid(c.renda)}`)+`
+  <div class="card dark"><div class="h"><div><b>Reserva de emergência</b><small>25% do que você recebeu no mês · obrigatório</small></div><b>${brl(c.meta)}</b></div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado este mês</span><b style="color:#D6B370">${brl(c.guardado)} de ${brl(c.meta)}</b></div>
     <div class="bar"><i style="width:${pg}%"></i></div>
+    <span class="sm">${c.guardado>=c.meta&&c.meta?'Meta do mês cumprida':'Faltam '+brl(Math.max(0,c.meta-c.guardado))}</span>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Total acumulado</span><b style="color:#fff">${brl(c.acumulado)}</b></div>
     <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Registrar valor guardado</button></div>
-  <div class="card"><div class="h"><div><b>Contas e essenciais</b><small>${cf.pctEssenciais}% · fixas, boletos, mercado, transporte…</small></div><b>${brl(c.metaEss)}</b></div>
-    <div class="bar"><i style="width:${pe}%;background:${pe>=100?'var(--warn)':'#4D6391'}"></i></div>
-    <span class="sm ${pe>=80?'warn':''}">Usado ${brl(c.ess)} · ${c.metaEss-c.ess>=0?'restam '+brl(c.metaEss-c.ess):'passou '+brl(c.ess-c.metaEss)}</span></div>
-  <div class="card"><div class="h"><div><b>Livre pra gastar</b><small>${cf.pctLivre}% · o que você quiser</small></div><b>${brl(c.metaLivre)}</b></div>
-    <div class="bar"><i style="width:${pl}%;background:${pl>=100?'var(--warn)':'#C9A45C'}"></i></div>
-    <span class="sm ${pl>=80?'warn':''}">Usado ${brl(c.livre)} · ${c.metaLivre-c.livre>=0?'restam '+brl(c.metaLivre-c.livre):'passou '+brl(c.livre-c.metaLivre)}</span></div>
-  <button class="add" onclick="formRenda()">Ajustar renda e porcentagens</button>`;
+  <div class="card"><div class="h"><div><b>Gastos do mês</b><small>Fixas, boletos, parcelas e lançamentos</small></div><b>${brl(c.gastoTotal)}</b></div></div>
+  <div class="card"><div class="h"><div><b>Livre depois da reserva</b><small>Renda − gastos − reserva</small></div><b class="${c.sobra<0?'warn':''}">${hid(c.sobra)}</b></div></div>
+  <button class="add" onclick="formRenda()">+ Recebi dinheiro</button>`;
 }
 
 // ---------- render ----------
@@ -298,10 +295,13 @@ const v=id=>$('#'+id).value;
 const rodape=(salvarFn,id,coll)=>`<button class="btn" onclick="${salvarFn}">Salvar</button>${id?`<button class="btn danger" onclick="apagar('${coll}','${id}')">Excluir</button>`:''}<button class="btn ghost" onclick="fechar()">Cancelar</button>`;
 async function apagar(coll,id){if(confirm('Excluir este item?'))salvar('/api/'+coll+'/'+id,'DELETE')}
 
-function formRenda(){const c=db.config;abrir(`<h2>Renda e divisão</h2>${valorCampo('r','Quanto você recebe por mês (total)',c.renda)}
-  ${campo('pe','% para contas e essenciais','number',c.pctEssenciais,'min="0" max="75" inputmode="numeric"')}
-  <div class="sm">A reserva de emergência é sempre 25%. O que sobrar dos outros 75% vai para "livre pra gastar".</div>
-  ${rodape("salvar('/api/config','PUT',{renda:v('r'),pctEssenciais:v('pe')})")}`)}
+function formRenda(){const es=entradasDe(mes);
+  abrir(`<h2>Recebi dinheiro</h2>${valorCampo('val','Valor recebido')}
+  <div class="row2">${campo('desc','De onde (opcional)',undefined,'','placeholder="Ex.: Cast"')}${campo('dt','Data','date',mes===hoje().slice(0,7)?hoje():mes+'-01')}</div>
+  <button class="btn" onclick="salvar('/api/entradas','POST',{valor:v('val'),desc:v('desc'),data:v('dt')})">Adicionar</button>
+  <div class="sec-h" style="margin-top:6px"><span>Recebido em ${MESES[+mes.slice(5)-1]}</span><b>${brl(rendaDe(mes))}</b></div>
+  <div class="list">${es.length?es.map(e=>`<div class="item"><div class="t"><b>${esc(e.desc||'Entrada')}</b><small>${dataBR(e.data)}</small></div><span class="v">${brl(e.valor)}</span><button class="icon-btn" aria-label="Excluir" onclick="apagar('entradas','${e.id}')">×</button></div>`).join(''):'<div class="empty">Nada registrado ainda neste mês.</div>'}</div>
+  <button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 function formFixa(id){const f=db.fixas.find(x=>x.id===id)||{};const pago=id&&(db.pagos[mes]||[]).includes(id);
   abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}<div class="row2">${valorCampo('val','Valor',f.valor)}${campo('d','Dia do vencimento','number',f.dia||'','min="1" max="31" inputmode="numeric"')}</div>${sel('cat','Categoria',['Casa','Contas','Assinaturas','Educação','Saúde','Transporte','Outros'],f.categoria||'Casa')}
   ${id?`<button class="btn ${pago?'ghost':''}" onclick="pagarFixa('${id}',${!pago})">${pago?'Desmarcar pago em '+MESES[+mes.slice(5)-1]:'Marcar como paga em '+MESES[+mes.slice(5)-1]}</button>`:''}
