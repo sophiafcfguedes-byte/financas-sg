@@ -20,23 +20,22 @@
   --bg:#F6F3EC; --card:#FFFFFF; --ink:#141B2B; --muted:#5E6577; --line:#ECEEF3; --border:#D9DEE8;
   --navy:#16274A; --navy2:#0E1B36; --hero:#16274A; --heroMuted:#C7D0E3; --track:#34466B;
   --gold:#C9A45C; --goldSoft:#D6B370; --goldBtn:#B8913F; --warn:#B04A12; --ok:#1D6B4A; --okBg:#E3F0EA;
-  --nav:#FFFFFF; --wmS:.16; --wmG:.08; --wmGcolor:#16274A;
+  --nav:#FFFFFF; --wmOp:.35; --wmGcolor:#16274A;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0B1220; --card:#162036; --ink:#EEF1F6; --muted:#9AA5BA; --line:#1F2A42; --border:#2A3754;
   --navy:#D6B370; --navy2:#E8D3A0; --hero:#1C3160; --heroMuted:#C7D0E3; --track:#34466B;
-  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --wmS:.2; --wmG:.14; --wmGcolor:#EEF1F6;
+  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --wmOp:.3; --wmGcolor:#EEF1F6;
 }}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
-body{min-height:100vh;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+body{min-height:100vh;padding-bottom:calc(170px + env(safe-area-inset-bottom))}
 button,input,select{font:inherit;color:inherit}
 .wrap{max-width:480px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 20px 24px;position:relative;z-index:1;display:flex;flex-direction:column;gap:18px}
-.wm{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
-.wm .frame{position:absolute;right:-50px;top:190px;width:340px;height:340px;border-radius:70px;border:2px solid var(--gold);opacity:var(--wmG)}
-.wm span{position:absolute;font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;font-size:330px;line-height:1}
-.wm .s{right:90px;top:150px;color:var(--gold);opacity:var(--wmS)}
-.wm .g{right:-20px;top:230px;color:var(--wmGcolor);opacity:var(--wmG)}
+.wm{position:fixed;left:0;right:0;bottom:calc(76px + env(safe-area-inset-bottom));pointer-events:none;z-index:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding-bottom:18px;opacity:var(--wmOp)}
+.wm .sg{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:500;font-size:44px;line-height:1;letter-spacing:-4px;color:var(--gold)}
+.wm .sg b{font-weight:500;color:var(--wmGcolor)}
+.wm .fin{font-family:'Cormorant Garamond',serif;font-size:13px;letter-spacing:6px;text-transform:uppercase;color:var(--wmGcolor)}
 .top{display:flex;justify-content:space-between;align-items:center}
 .top small{display:block;color:var(--muted);font-size:13px}
 .top h1{margin:0;font-size:22px;font-weight:800}
@@ -110,7 +109,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><div class="frame"></div><span class="s">S</span><span class="g">G</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Mercado','Delivery','Transporte','Lazer','Saúde','Casa','Contas','Compras','Beleza','Assinaturas','Educação','Viagem','Outros'];
