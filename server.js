@@ -190,8 +190,8 @@ function recategorizar() {
   }
   if (n) { save(db); console.log(`Categorias: ${n} compra(s) reclassificada(s)`); }
 }
-const CATS_OK = ['Compras', 'Saúde', 'Assinaturas', 'Caio', 'Delivery', 'Viagem', 'Outros', 'Bares'];
-const MAPA_CAT = { iFood: 'Delivery', Mercado: 'Compras' };
+const CATS_OK = ['Compras', 'Mercado', 'Saúde', 'Assinaturas', 'Caio', 'Delivery', 'Viagem', 'Outros', 'Bares'];
+const MAPA_CAT = { iFood: 'Delivery' };
 function ajustarCategorias() {
   const db = load(); let n = 0;
   const fix = c => CATS_OK.includes(c) ? c : (MAPA_CAT[c] || 'Outros');
