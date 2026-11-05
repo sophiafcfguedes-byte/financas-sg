@@ -120,7 +120,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v8</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v9</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Outros','Bares'];
@@ -245,11 +245,13 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button>`).join(''):'<div class="empty">Cadastre aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="cc ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ Boleto':'Boleto'}</button></div></div>`).join(''):'<div class="empty">Cadastre aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>
   <button class="add" onclick="formFixa()">+ Adicionar despesa fixa</button>`;
 }
 function telaGastos(c){
+  const tCartao=c.tGas+c.tPar, tBoletos=c.tBol+c.fixas.filter(f=>f.boleto).reduce((a,f)=>a+f.valor,0);
   return topo('Gastos',mesNome(mes))+`
+  <div class="card"><div class="h"><div><b>Gastos totais</b><small>Cartão e lançamentos ${brl(tCartao)} · Boletos ${brl(tBoletos)}</small></div><b style="color:#C0392B;font-size:20px;white-space:nowrap">${hid(tCartao+tBoletos)}</b></div></div>
   ${(()=>{const ligados=new Set(c.parcelas.map(p=>p.naFatura).filter(Boolean));const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m&&!ligados.has(x.g.id));const tot=c.parcelas.reduce((s,p)=>s+p.valorParcela,0)+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
   ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total}${p.naFatura?' · valor da fatura':''} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button></div>`).join('')}
   ${fp.map(({g,m})=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(m[1])}</b><small>Parcela ${+m[2]} de ${+m[3]} · da fatura · até ${mesNome(addMes(mes,+m[3]-+m[2])).toLowerCase()}</small></div><span class="v">${brl(g.valor)}</span></button></div>`).join('')}
@@ -332,6 +334,7 @@ async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value})
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
 async function dividirParcela(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const p=db.parceladas.find(x=>x.id===id);if(!p)return;const novo=p.dividido?{valorParcela:p.valorParcela*2,dividido:false}:{valorParcela:Math.round(p.valorParcela/2*100)/100,dividido:true};db=await api('/api/parceladas/'+id,'PUT',novo);render();scrollTo(0,y)}
+async function marcaBoleto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const f=db.fixas.find(x=>x.id===id);if(!f)return;f.boleto=!f.boleto;render();scrollTo(0,y);db=await api('/api/fixas/'+id,'PUT',{boleto:f.boleto});render();scrollTo(0,y)}
 async function dividir(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const novo=g.dividido?{valor:g.valor*2,dividido:false}:{valor:Math.round(g.valor/2*100)/100,dividido:true};db=await api('/api/gastos/'+id,'PUT',novo);render();scrollTo(0,y)}
 async function apagarGasto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const g=db.gastos.find(x=>x.id===id);if(!g||!confirm('Excluir "'+(g.desc||'gasto')+'"?'))return;const y=scrollY;db=await api('/api/gastos/'+id,'DELETE');render();scrollTo(0,y)}
 async function mudaCat(id,cat){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
