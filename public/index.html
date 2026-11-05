@@ -20,12 +20,12 @@
   --bg:#F6F3EC; --card:#FFFFFF; --ink:#141B2B; --muted:#5E6577; --line:#ECEEF3; --border:#D9DEE8;
   --navy:#16274A; --navy2:#0E1B36; --hero:#16274A; --heroMuted:#C7D0E3; --track:#34466B;
   --gold:#C9A45C; --goldSoft:#D6B370; --goldBtn:#B8913F; --warn:#B04A12; --ok:#1D6B4A; --okBg:#E3F0EA;
-  --nav:#FFFFFF; --wmOp:.35; --wmGcolor:#16274A;
+  --nav:#FFFFFF; --c1:#16274A; --wmOp:.35; --wmGcolor:#16274A;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0B1220; --card:#162036; --ink:#EEF1F6; --muted:#9AA5BA; --line:#1F2A42; --border:#2A3754;
   --navy:#D6B370; --navy2:#E8D3A0; --hero:#1C3160; --heroMuted:#C7D0E3; --track:#34466B;
-  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --wmOp:.3; --wmGcolor:#EEF1F6;
+  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --c1:#7D95CC; --wmOp:.3; --wmGcolor:#EEF1F6;
 }}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
@@ -86,8 +86,8 @@ button,input,select{font:inherit;color:inherit}
 .split{height:18px;border-radius:9px;display:flex;overflow:hidden}
 .fab{position:fixed;right:max(20px,calc(50% - 220px));bottom:calc(96px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:28px;border:0;background:var(--goldBtn);color:#fff;font-size:30px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5;cursor:pointer}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--nav);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
-nav button{height:64px;border:0;background:none;font-size:12px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
+nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))}
+nav button{height:64px;border:0;background:none;font-size:11px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 nav button.on{color:var(--navy)}
 nav svg{width:22px;height:22px}
 /* folha de formulário */
@@ -181,7 +181,7 @@ function calc(m){
   const meta=renda*.25;
   const ess=tFix+tBol+gastos.filter(g=>ESSENCIAIS.includes(g.categoria)).reduce((s,g)=>s+g.valor,0)+parcelas.filter(p=>ESSENCIAIS.includes(p.categoria)).reduce((s,p)=>s+p.valorParcela,0);
   const livre=gastoTotal-ess;
-  const porCat={};gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
+  const porCat={};if(tFix)porCat['Fixas']=tFix;boletos.filter(b=>!b.ehFatura).forEach(b=>porCat['Boletos']=(porCat['Boletos']||0)+b.valor);gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
   const acumulado=db.reserva.filter(r=>r.mes<=m).reduce((s,r)=>s+r.valor,0);
   return{tri,renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
     sobra:renda-gastoTotal-meta};
@@ -197,6 +197,7 @@ const I={
   fixas:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>',
   gastos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18v12H3z"/><path d="M3 11h18M7 15h4"/></svg>',
   boletos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 5v14M7 5v14M10 5v14M14 5v14M17 5v14M20 5v14"/></svg>',
+  graficos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
   poupanca:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg>'
 };
 
@@ -233,10 +234,7 @@ function telaFixas(c){
   <button class="add" onclick="formFixa()">+ Adicionar despesa fixa</button>`;
 }
 function telaGastos(c){
-  const cats=Object.entries(c.porCat).sort((a,b)=>b[1]-a[1]);const max=cats[0]?.[1]||1;
   return topo('Gastos',mesNome(mes))+`
-  <div class="card"><div class="sec-h"><span>Por categoria</span><b>${brl(c.tGas+c.tPar)}</b></div>
-  ${cats.length?cats.map(([k,v])=>`<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${esc(k)}</span><b>${brl(v)}</b></div><div class="bar"><i style="width:${v/max*100}%"></i></div></div>`).join(''):'<div class="sm">Nenhum gasto lançado neste mês.</div>'}</div>
   <button class="card" onclick="formTricount()" style="border:0;text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="h"><div><b>Tricount Victoria</b><small>Parte dela no cartão · abate dos seus gastos</small></div><b class="okc" style="white-space:nowrap">${c.tri?'− '+brl(c.tri):'Adicionar'}</b></div></button>
   ${(()=>{const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m);const tot=c.tPar+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
   ${c.parcelas.map(p=>`<button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button>`).join('')}
@@ -246,6 +244,30 @@ function telaGastos(c){
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
   <div class="list">${c.gastos.length?c.gastos.map(g=>`<div class="gasto"><button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>
     <div class="catchips" role="group" aria-label="Categoria de ${esc(g.desc||'gasto')}">${(CATS.includes(g.categoria)?CATS:[g.categoria,...CATS]).map(k=>`<button class="cc ${k===g.categoria?'on':''}" aria-pressed="${k===g.categoria}" onclick="mudaCat('${g.id}','${k}')">${k}</button>`).join('')}</div></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
+}
+
+const CORES={Compras:'var(--c1)',Mercado:'#4D6391',Saúde:'#1D6B4A',Assinaturas:'#8E7BEA',Caio:'#C9A45C',Delivery:'#E07A3F',Viagem:'#2F8FB5',Carro:'#6B4F3A',Bares:'#B23A5B',Outros:'#9AA3B5',Fixas:'#3E5C8A',Boletos:'#7C8798'};
+function telaGraficos(c){
+  const cats=Object.entries(c.porCat).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);const tot=cats.reduce((s,x)=>s+x[1],0)||1;
+  // rosca
+  let ang=-Math.PI/2;const R=70,r=44,cx=90,cy=90;
+  const fatias=cats.map(([k,v])=>{const a=v/tot*Math.PI*2,a2=ang+a,lg=a>Math.PI?1:0;
+    const p=(rr,t)=>[cx+rr*Math.cos(t),cy+rr*Math.sin(t)];const [x1,y1]=p(R,ang),[x2,y2]=p(R,a2-0.0001),[x3,y3]=p(r,a2-0.0001),[x4,y4]=p(r,ang);
+    const d=`M${x1} ${y1}A${R} ${R} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${lg} 0 ${x4} ${y4}Z`;ang=a2;return`<path d="${d}" fill="${CORES[k]||'#9AA3B5'}"/>`}).join('');
+  // últimos 6 meses
+  const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5));const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
+  const mx=Math.max(1,...vals.map(v=>Math.max(v.g,v.r)));
+  return topo('Gráficos',mesNome(mes))+`
+  <div class="card"><div class="sec-h"><span>Para onde foi o dinheiro</span><b>${brl(cats.length?tot:0)}</b></div>
+  ${cats.length?`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <svg viewBox="0 0 180 180" width="150" height="150" role="img" aria-label="Gráfico de gastos por categoria">${fatias}<text x="90" y="86" text-anchor="middle" font-size="11" fill="currentColor" opacity=".6">total</text><text x="90" y="104" text-anchor="middle" font-size="15" font-weight="800" fill="currentColor">${Math.round(tot).toLocaleString('pt-BR')}</text></svg>
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px">${cats.map(([k,v])=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${CORES[k]||'#9AA3B5'};flex:none"></i><span style="flex:1">${esc(k)}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div>
+  ${cats.map(([k,v])=>`<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${esc(k)}</span><b>${brl(v)}</b></div><div class="bar"><i style="width:${v/cats[0][1]*100}%;background:${CORES[k]||'#9AA3B5'}"></i></div></div>`).join('')}`:'<div class="sm">Nenhum gasto neste mês.</div>'}</div>
+  <div class="card"><div class="sec-h"><span>Últimos 6 meses</span></div>
+    <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:#C9A45C"></i>Recebido</span><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--c1)"></i>Gasto</span></div>
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;align-items:end;height:150px">${vals.map(v=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Recebido ${brl(v.r)}" style="width:12px;border-radius:3px 3px 0 0;background:#C9A45C;height:${v.r/mx*100}%"></i><i title="Gasto ${brl(v.g)}" style="width:12px;border-radius:3px 3px 0 0;background:var(--c1);height:${v.g/mx*100}%"></i></div>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${vals.map(v=>`<span style="${v.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+v.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
+  </div>`;
 }
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
@@ -278,13 +300,13 @@ function render(){
     document.querySelector('nav')?.remove();document.querySelector('.fab')?.remove();
     const p=$('#pin');p.focus();p.onkeydown=e=>{if(e.key==='Enter')entrar()};return}
   const c=calc(mes);
-  const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,boletos:telaBoletos,poupanca:telaPoupanca};
+  const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,boletos:telaBoletos,poupanca:telaPoupanca};
   app.innerHTML=`<div class="wrap">${telas[tab](c)}</div>`;
   if(!document.querySelector('nav')){
     const n=document.createElement('nav');document.body.appendChild(n);
     const f=document.createElement('button');f.className='fab';f.setAttribute('aria-label','Lançar gasto');f.textContent='+';f.onclick=()=>formGasto();document.body.appendChild(f);
   }
-  const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',boletos:'Boletos',poupanca:'Poupança'};
+  const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',graficos:'Gráficos',boletos:'Boletos',poupanca:'Poupança'};
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='boletos')carregar()}
