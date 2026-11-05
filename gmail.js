@@ -179,11 +179,13 @@ async function lerGmail({ user, pass, lastUid = 0, uidValidity = null, log = () 
   const im = new Imap('imap.gmail.com', 993);
   await im.connect();
   try {
+    log('Gmail: entrando…');
     await im.cmd('LOGIN ' + q(user) + ' ' + q(pass));
     const sel = await im.cmd('SELECT INBOX');
     const uv = sel.map(p => /UIDVALIDITY (\d+)/.exec(p[0].text)).find(Boolean)?.[1] || null;
     if (uidValidity && uv !== uidValidity) lastUid = 0;
-    const busca = 'X-GM-RAW ' + q('newer_than:45d (boleto OR fatura OR vencimento OR "linha digitável" OR "código de barras" OR cobrança OR "conta de")');
+    log('Gmail: conectado, procurando boletos');
+    const busca = 'X-GM-RAW ' + q('newer_than:45d (boleto OR fatura OR vencimento OR vence OR pagamento OR "linha digitavel" OR "codigo de barras" OR cobranca OR has:attachment)');
     const r = await im.cmd('UID SEARCH ' + busca);
     const uids = (r.map(p => /^\* SEARCH(.*)/.exec(p[0].text)).find(Boolean)?.[1] || '').trim().split(/\s+/).filter(Boolean).map(Number).filter(u => u > lastUid).sort((a, b) => a - b);
     log(`Gmail: ${uids.length} e-mail(s) novo(s) para olhar`);
