@@ -1,6 +1,69 @@
 // Leitura de boletos do Gmail por IMAP (senha de app), sem dependências externas.
 const tls = require('tls');
 const zlib = require('zlib');
+const { execFileSync } = require('child_process');
+const fs = require('fs'), os = require('os'), pathMod = require('path');
+
+// usa o pdftotext (poppler-utils) quando existir; abre PDF com senha
+function pdfParaTexto(buf, senha) {
+  const tmp = pathMod.join(os.tmpdir(), 'fin-' + process.pid + '-' + Date.now() + '.pdf');
+  try {
+    fs.writeFileSync(tmp, buf, { mode: 0o600 });
+    const args = ['-layout', '-enc', 'UTF-8'];
+    if (senha) args.push('-upw', senha);
+    return { text: execFileSync('pdftotext', [...args, tmp, '-'], { timeout: 30000, maxBuffer: 20e6, stdio: ['ignore', 'pipe', 'ignore'] }).toString('utf8'), ok: true };
+  } catch (e) {
+    if (e.code === 'ENOENT') return { ok: false, semFerramenta: true };
+    return { ok: false };
+  } finally { try { fs.unlinkSync(tmp); } catch {} }
+}
+
+// ---------------- fatura do cartão ----------------
+const REGRAS = [
+  ['Delivery', /IFOOD|\bIFD\b|RAPPI|ZE DELIVERY|AIQFOME|JAMES/],
+  ['Transporte', /UBER|\b99\b|99APP|99 TAXI|CABIFY|POSTO|SHELL|IPIRANGA|PETROBRAS|ESTACION|ESTAPAR|SEM PARAR|CONECTCAR|VELOE|METRO|BILHETE/],
+  ['Mercado', /MERCAD(?!O ?LIVRE|OLIVRE|O PAGO|OPAGO)|SUPERMERC|CARREFOUR|PAO DE ACUCAR|ASSAI|ATACAD|HORTI|SONDA|DIA BRASIL|OXXO|ST MARCHE|EMPORIO/],
+  ['Assinaturas', /NETFLIX|SPOTIFY|PRIME VIDEO|AMAZONPRIME|DISNEY|HBO|\bMAX\b|YOUTUBE|APPLE\.COM|GOOGLE|DEEZER|GLOBOPLAY|PARAMOUNT|CRUNCHYROLL|CHATGPT|OPENAI|ICLOUD|MICROSOFT|ADOBE|CLAUDE|ANTHROPIC/],
+  ['Saúde', /DROGA|FARMA|RAIA|PACHECO|PAGUE MENOS|HOSPITAL|CLINICA|LABORAT|DENTIST|ODONTO|UNIMED|AMIL|SMARTFIT|SMART FIT|ACADEMIA|GYM/],
+  ['Viagem', /HOTEL|AIRBNB|LATAM|\bGOL\b|AZUL|BOOKING|DECOLAR|123MILHAS|MAXMILHAS|HURB|EXPEDIA/],
+  ['Beleza', /SALAO|BELEZA|SEPHORA|BOTICARIO|NATURA|ESMALTERIA|BARBEARIA|ESTETICA|DEPIL/],
+  ['Compras', /AMAZON|MERCADOLIVRE|MERCADO LIVRE|MERCADOPAGO|SHOPEE|MAGALU|MAGAZINE|SHEIN|RENNER|ZARA|C&A|CEA |RIACHUELO|AMERICANAS|CASAS BAHIA|KABUM|ALIEXPRESS|DECATHLON|CENTAURO|NETSHOES|LEROY|TOK.?STOK|IKEA/],
+  ['Lazer', /RESTAUR|\bBAR\b|LANCH|PIZZ|BURGER|CAFE|PADARIA|CINEMA|INGRESSO|SYMPLA|EVENTIM|CHOPP|CERVEJ|SUSHI|STEAK|OUTBACK|MCDONALD|BK |STARBUCKS|COCO BAMBU/],
+  ['Educação', /CURSO|ESCOLA|FACULDADE|UDEMY|ALURA|LIVRARIA|SARAIVA/]
+];
+const normDesc = d => String(d).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\d{2}\/\d{2}\s*$/, '').replace(/[^A-Z& ]+/g, ' ').replace(/\s+/g, ' ').trim();
+function categorizar(desc, aprendido = {}) {
+  const n = normDesc(desc);
+  if (aprendido[n]) return aprendido[n];
+  for (const [cat, re] of REGRAS) if (re.test(n)) return cat;
+  return 'Outros';
+}
+const IGNORAR = /PAGAMENTO|PAGTO|TOTAL|SALDO|ANUIDADE DIF|ENCARGOS|JUROS DE|IOF|LIMITE|CREDITO ROTATIVO|FATURA ANTERIOR|ESTORNO|DEVOLUC/;
+function lerFatura(texto, vencISO) {
+  if (!/fatura|lan[çc]amentos|cart[ãa]o/i.test(texto)) return [];
+  const [vy, vm] = (vencISO || iso(new Date())).split('-').map(Number);
+  const compras = []; const vistos = new Set();
+  // uma linha pode ter 2 colunas de lançamentos lado a lado: procura todos os trechos "dd/mm descrição valor"
+  const re = /(\d{2})\/(\d{2})\s{1,6}(\S(?:(?!\d,\d{2}(?!\d)).)*?)\s+(-?\s?[\d.]{1,9},\d{2})(?!\d)/g;
+  for (const linha of texto.split(/\r?\n/)) {
+    let m; re.lastIndex = 0;
+    while ((m = re.exec(linha))) {
+      const dd = +m[1], mm = +m[2]; if (dd < 1 || dd > 31 || mm < 1 || mm > 12) continue;
+      let desc = m[3].replace(/\s{2,}/g, ' ').trim();
+      const valor = Number(m[4].replace(/\s|\./g, '').replace(',', '.'));
+      if (!valor || valor < 0 || IGNORAR.test(normDesc(desc)) || desc.length < 2) continue;
+      const parc = /(\d{2})\/(\d{2})\s*$/.exec(desc);
+      let n = 0, total = 0; if (parc && +parc[1] >= 1 && +parc[1] <= +parc[2]) { n = +parc[1]; total = +parc[2]; desc = desc.slice(0, parc.index).trim(); }
+      const ano = mm > vm ? vy - 1 : vy;
+      const data = `${ano}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+      const chave = data + '|' + desc + '|' + valor + '|' + n;
+      if (vistos.has(chave)) continue; vistos.add(chave);
+      compras.push({ data, desc: desc.slice(0, 60), valor, parcela: n ? `${n}/${total}` : '' });
+    }
+  }
+  return compras;
+}
+
 
 // ---------------- cliente IMAP mínimo ----------------
 class Imap {
@@ -175,7 +238,7 @@ function nomeRemetente(from, subject) {
 }
 
 // ---------------- leitura ----------------
-async function lerGmail({ user, pass, lastUid = 0, uidValidity = null, log = () => {} }) {
+async function lerGmail({ user, pass, senhaPdf = '', lastUid = 0, uidValidity = null, log = () => {} }) {
   const im = new Imap('imap.gmail.com', 993);
   await im.connect();
   try {
@@ -206,14 +269,25 @@ async function lerGmail({ user, pass, lastUid = 0, uidValidity = null, log = () 
       const { head } = splitHead(raw); const h = headers(head);
       const { texts, pdfs } = walk(raw);
       let texto = texts.join('\n'); let protegido = false;
-      for (const p of pdfs) { const t = pdfText(p); if (t.encrypted) protegido = true; texto += '\n' + t.text; }
+      let textoPdf = '';
+      for (const p of pdfs) {
+        let t = pdfParaTexto(p);
+        if (!t.ok && !t.semFerramenta && senhaPdf) t = pdfParaTexto(p, senhaPdf);
+        if (t.ok) { textoPdf += '\n' + t.text; continue; }
+        const r = pdfText(p); if (r.encrypted) protegido = true; textoPdf += '\n' + r.text;
+      }
+      texto += textoPdf;
       const bs = acharBoletos(texto);
       const data = h.date ? new Date(h.date) : new Date();
-      for (const b of bs) encontrados.push({ ...b, venc: b.venc || acharVenc(texto) || iso(data), desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200) });
-      if (!bs.length && protegido) encontrados.push({ protegido: true, desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200), venc: acharVenc(texto) || iso(data) });
+      const vencFat = bs[0]?.venc || acharVenc(texto) || iso(data);
+      const compras = textoPdf ? lerFatura(textoPdf, vencFat) : [];
+      if (compras.length >= 2) log(`Gmail: fatura com ${compras.length} compra(s) em "${decodeWords(h.subject).slice(0, 50)}"`);
+      for (const b of bs) encontrados.push({ ...b, compras: compras.length >= 2 ? compras : undefined, venc: b.venc || acharVenc(texto) || iso(data), desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200) });
+      if (!bs.length && compras.length >= 2) encontrados.push({ faturaSemCodigo: true, compras, valor: 0, venc: vencFat, desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200) });
+      else if (!bs.length && protegido) encontrados.push({ protegido: true, desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200), venc: acharVenc(texto) || iso(data) });
     }
     return { encontrados, lastUid: maxUid, uidValidity: uv };
   } finally { im.close(); }
 }
 
-module.exports = { lerGmail, acharBoletos, lerLinha, walk, pdfText };
+module.exports = { lerGmail, acharBoletos, lerLinha, walk, pdfText, lerFatura, categorizar, normDesc, pdfParaTexto };

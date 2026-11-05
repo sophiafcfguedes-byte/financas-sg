@@ -168,7 +168,7 @@ function calc(m){
   const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).sort((a,b)=>a.venc.localeCompare(b.venc));
   const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
   const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.reduce((s,p)=>s+p.valorParcela,0);
-  const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.reduce((s,b)=>s+b.valor,0);
+  const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);
   const gastoTotal=tFix+tPar+tGas+tBol;
   const faltaPagar=fixas.filter(f=>!f.pago).reduce((s,f)=>s+f.valor,0)+boletos.filter(b=>!b.pago).reduce((s,b)=>s+b.valor,0);
   const meta=renda*.25;
@@ -234,13 +234,13 @@ function telaGastos(c){
   ${c.parcelas.length?c.parcelas.map(p=>`<button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button>`).join(''):'<div class="sm">Nenhuma parcela neste mês.</div>'}
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
-  <div class="list">${c.gastos.length?c.gastos.map(g=>`<button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.categoria)} · ${esc(g.forma)} · ${dataBR(g.data)}</small></div><span class="v">${brl(g.valor)}</span></button>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
+  <div class="list">${c.gastos.length?c.gastos.map(g=>`<button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.categoria)} · ${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
 }
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
   return topo('Boletos',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span class="warn" style="color:var(--warn)">Em aberto</span><b>${brl(ab.reduce((s,b)=>s+b.valor,0))}</b></div>
-  ${ab.length?ab.map(b=>`<div class="card"><div class="h"><div><b>${esc(b.desc)}</b><small>Vence ${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}</small>${b.aviso?`<small class="warn">${esc(b.aviso)}</small>`:''}</div><b>${brl(b.valor)}</b></div>
+  ${ab.length?ab.map(b=>`<div class="card"><div class="h"><div><b>${esc(b.desc)}</b><small>Vence ${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}${b.ehFatura?' · compras já em Gastos':''}</small>${b.aviso?`<small class="warn">${esc(b.aviso)}</small>`:''}</div><b>${brl(b.valor)}</b></div>
   <div class="row2">${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código</button>`:`<button class="btn ghost" onclick="formBoleto('${b.id}')">Editar</button>`}<button class="btn" onclick="pagarBoleto('${b.id}',true)">Marcar pago</button></div></div>`).join(''):'<div class="list"><div class="empty">Nenhum boleto em aberto.</div></div>'}</div>
   ${pg.length?`<div class="sec"><div class="sec-h"><span>Pagos</span></div><div class="list">${pg.map(b=>`<button class="item" onclick="formBoleto('${b.id}')"><div class="t"><b style="color:var(--muted)">${esc(b.desc)}</b><small>${dataBR(b.venc)}</small></div><span class="v" style="color:var(--muted)">${brl(b.valor)}</span></button>`).join('')}</div></div>`:''}
   <button class="add" onclick="formBoleto()">+ Adicionar boleto</button>

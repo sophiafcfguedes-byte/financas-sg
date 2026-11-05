@@ -80,9 +80,9 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 const CLEAN = {
   entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
-  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20) }),
+  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300) }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
-  boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '' }),
+  boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
 };
 
@@ -149,7 +149,14 @@ const server = http.createServer(async (req, res) => {
         }
         const i = db[coll].findIndex(x => x.id === id);
         if (i < 0) return send(res, 404, { erro: 'não encontrado' });
-        if (req.method === 'PUT') { db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, db[coll][i], await body(req)))); save(db); return send(res, 200, comFlag(db)); }
+        if (req.method === 'PUT') {
+          const antes = db[coll][i];
+          db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, antes, await body(req))));
+          if (coll === 'gastos' && antes.fonte === 'fatura' && antes.categoria !== db[coll][i].categoria) {
+            db.aprendido = db.aprendido || {}; db.aprendido[require('./gmail.js').normDesc(db[coll][i].desc.replace(/ \(\d+\/\d+\)$/, ''))] = db[coll][i].categoria;
+          }
+          save(db); return send(res, 200, comFlag(db));
+        }
         if (req.method === 'DELETE') { db[coll].splice(i, 1); save(db); return send(res, 200, comFlag(db)); }
       }
       return send(res, 404, { erro: 'rota desconhecida' });
@@ -178,16 +185,24 @@ async function rodarGmail() {
   lendo = true;
   const db0 = load(); const g = db0.gmail || {};
   try {
-    const r = await require('./gmail.js').lerGmail({ user: GMAIL_USER, pass: GMAIL_PASS, lastUid: g.lastUid || 0, uidValidity: g.uidValidity, log: console.log });
+    const r = await require('./gmail.js').lerGmail({ user: GMAIL_USER, pass: GMAIL_PASS, senhaPdf: process.env.FATURA_PDF_PASS || '', lastUid: g.versao === 2 ? (g.lastUid || 0) : 0, uidValidity: g.uidValidity, log: console.log });
     const db = load(); const conhecidos = new Set(db.boletos.map(b => b.codigo).filter(Boolean).concat(db.boletos.map(b => b.msgId).filter(Boolean)));
     let novos = 0;
+    const gChaves = new Set(db.gastos.map(g => g.chave).filter(Boolean));
+    const { categorizar } = require('./gmail.js');
+    let nCompras = 0;
     for (const e of r.encontrados) {
+      if (e.compras) for (const c of e.compras) {
+        const k = (e.msgId || e.codigo) + '|' + c.data + '|' + c.desc + '|' + c.valor + '|' + c.parcela;
+        if (gChaves.has(k)) continue; gChaves.add(k); nCompras++;
+        db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.parcela ? e.venc : c.data, categoria: categorizar(c.desc, db.aprendido || {}), forma: 'Cartão', fonte: 'fatura', chave: k });
+      }
       const chave = e.codigo || e.msgId; if (!chave || conhecidos.has(chave)) continue;
       conhecidos.add(chave); novos++;
-      db.boletos.push({ id: crypto.randomUUID().slice(0, 12), desc: e.desc, valor: e.valor || 0, venc: e.venc, codigo: e.codigo || '', pago: false, fonte: 'gmail', msgId: e.msgId || '', aviso: e.protegido ? 'PDF com senha: confira valor e código no e-mail' : (!e.valor ? 'Confira o valor no e-mail' : '') });
+      db.boletos.push({ id: crypto.randomUUID().slice(0, 12), desc: e.desc, valor: e.valor || 0, venc: e.venc, codigo: e.codigo || '', pago: false, fonte: 'gmail', msgId: e.msgId || '', aviso: e.protegido ? 'PDF com senha: confira valor e código no e-mail' : (!e.valor ? 'Confira o valor no e-mail' : ''), ehFatura: !!e.compras });
     }
-    db.gmail = { lastUid: r.lastUid, uidValidity: r.uidValidity, ultima: new Date().toISOString(), erro: '' };
-    save(db); console.log(`Gmail: ${novos} boleto(s) novo(s)`);
+    db.gmail = { versao: 2, lastUid: r.lastUid, uidValidity: r.uidValidity, ultima: new Date().toISOString(), erro: '' };
+    save(db); console.log(`Gmail: ${novos} boleto(s) novo(s), ${nCompras} compra(s) de fatura`);
   } catch (e) {
     const db = load(); db.gmail = Object.assign({}, g, { ultima: new Date().toISOString(), erro: String(e.message || e).slice(0, 200) }); save(db);
     console.error('Gmail erro:', e.message);
