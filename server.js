@@ -192,4 +192,4 @@ async function rodarGmail() {
 }
 if (GMAIL_USER && GMAIL_PASS) { setTimeout(rodarGmail, 5000); setInterval(rodarGmail, 30 * 60 * 1000); }
 
-server.listen(PORT, () => console.log(`Finanças SG rodando na porta ${PORT}${GMAIL_USER ? ' · Gmail ligado' : ''}`));
+server.listen(PORT, () => console.log(`Finanças SG rodando na porta ${PORT}` + (GMAIL_USER && GMAIL_PASS ? ` · Gmail ligado (senha com ${GMAIL_PASS.length} letras)` : GMAIL_USER ? ' · Gmail SEM SENHA (confira GMAIL_APP_PASS)' : '')));
