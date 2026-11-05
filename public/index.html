@@ -291,7 +291,10 @@ async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});
 function abrir(html){fechar();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;bg.onclick=e=>{if(e.target===bg)fechar()};document.body.appendChild(bg);bg.querySelector('input')?.focus()}
 function fechar(){document.querySelector('.sheet-bg')?.remove()}
 const campo=(id,label,tipo='text',val='',extra='')=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${tipo}" value="${esc(val)}" ${extra}></div>`;
-const valorCampo=(id,label,val)=>campo(id,label,'text',val?String(val).replace('.',','):'','inputmode="decimal" placeholder="0,00"');
+const fmtMoeda=n=>(+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const valorCampo=(id,label,val)=>campo(id,label,'text',val?fmtMoeda(val):'','inputmode="numeric" class="money" placeholder="0,00" autocomplete="off"');
+// digita só números: 1234 vira 12,34 automaticamente
+document.addEventListener('input',e=>{const el=e.target;if(!el.classList||!el.classList.contains('money'))return;const d=el.value.replace(/\D/g,'').replace(/^0+/,'').slice(0,11);el.value=d?fmtMoeda(Number(d)/100):'';});
 const sel=(id,label,ops,val)=>`<div class="field"><label for="${id}">${label}</label><select id="${id}">${ops.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></div>`;
 const v=id=>$('#'+id).value;
 const rodape=(salvarFn,id,coll)=>`<button class="btn" onclick="${salvarFn}">Salvar</button>${id?`<button class="btn danger" onclick="apagar('${coll}','${id}')">Excluir</button>`:''}<button class="btn ghost" onclick="fechar()">Cancelar</button>`;
