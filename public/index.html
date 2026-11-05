@@ -169,14 +169,15 @@ function calc(m){
   const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
   const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.reduce((s,p)=>s+p.valorParcela,0);
   const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);
-  const gastoTotal=tFix+tPar+tGas+tBol;
+  const tri=(db.tricount||{})[m]||0;
+  const gastoTotal=Math.max(0,tFix+tPar+tGas+tBol-tri);
   const faltaPagar=fixas.filter(f=>!f.pago).reduce((s,f)=>s+f.valor,0)+boletos.filter(b=>!b.pago).reduce((s,b)=>s+b.valor,0);
   const meta=renda*.25;
   const ess=tFix+tBol+gastos.filter(g=>ESSENCIAIS.includes(g.categoria)).reduce((s,g)=>s+g.valor,0)+parcelas.filter(p=>ESSENCIAIS.includes(p.categoria)).reduce((s,p)=>s+p.valorParcela,0);
   const livre=gastoTotal-ess;
   const porCat={};gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
   const acumulado=db.reserva.filter(r=>r.mes<=m).reduce((s,r)=>s+r.valor,0);
-  return{renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
+  return{tri,renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
     sobra:renda-gastoTotal-meta};
 }
 
@@ -212,7 +213,7 @@ function telaInicio(c){
   <button class="add" onclick="formRenda()">${c.renda?'+ Recebi dinheiro':'+ Registrar o que recebi'}</button>
   <div class="grid3">
     <div class="tile"><span>Fixas</span><b>${brl(c.tFix)}</b></div>
-    <div class="tile"><span>Variáveis</span><b>${brl(c.tGas+c.tPar+c.tBol)}</b></div>
+    <div class="tile"><span>Variáveis</span><b>${brl(Math.max(0,c.tGas+c.tPar+c.tBol-c.tri))}</b></div>
     <div class="tile ok"><span>Guardado</span><b>${brl(c.guardado)}</b></div>
   </div>
   <div class="sec"><div class="sec-h"><span>Vence em breve</span></div>
@@ -230,6 +231,7 @@ function telaGastos(c){
   return topo('Gastos',mesNome(mes))+`
   <div class="card"><div class="sec-h"><span>Por categoria</span><b>${brl(c.tGas+c.tPar)}</b></div>
   ${cats.length?cats.map(([k,v])=>`<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${esc(k)}</span><b>${brl(v)}</b></div><div class="bar"><i style="width:${v/max*100}%"></i></div></div>`).join(''):'<div class="sm">Nenhum gasto lançado neste mês.</div>'}</div>
+  <button class="card" onclick="formTricount()" style="border:0;text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="h"><div><b>Tricount Victoria</b><small>Parte dela no cartão · abate dos seus gastos</small></div><b class="okc" style="white-space:nowrap">${c.tri?'− '+brl(c.tri):'Adicionar'}</b></div></button>
   <div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(c.tPar)}/mês</b></div>
   ${c.parcelas.length?c.parcelas.map(p=>`<button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button>`).join(''):'<div class="sm">Nenhuma parcela neste mês.</div>'}
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
@@ -325,6 +327,9 @@ function formBoleto(id){const b=db.boletos.find(x=>x.id===id)||{};
   ${campo('cod','Código de barras / Pix (opcional)',undefined,b.codigo)}
   ${id?`<button class="btn ghost" onclick="pagarBoleto('${id}',${!b.pago}).then(fechar)">${b.pago?'Marcar como em aberto':'Marcar como pago'}</button>`:''}
   ${rodape(`salvar('/api/boletos${id?'/'+id:''}','${id?'PUT':'POST'}',{desc:v('desc'),valor:v('val'),venc:v('venc'),codigo:v('cod')})`,id,'boletos')}`)}
+function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Quanto a Victoria te deve em '+MESES[+mes.slice(5)-1],(db.tricount||{})[mes]||'')}
+  <div class="sm">Esse valor sai dos seus gastos do mês, porque vocês usam o mesmo cartão.</div>
+  ${rodape("salvar('/api/tricount','PUT',{valor:v('val'),mes})")}`)}
 function formReserva(){abrir(`<h2>Guardei na reserva</h2>${valorCampo('val','Valor guardado')}${campo('nota','Onde (opcional)',undefined,'','placeholder="Ex.: CDB, poupança"')}
   <div class="sm">Conta para ${mesNome(mes).toLowerCase()}.</div>
   ${rodape(`salvar('/api/reserva','POST',{valor:v('val'),nota:v('nota'),mes})`)}`)}

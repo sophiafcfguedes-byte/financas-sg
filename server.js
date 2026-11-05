@@ -135,6 +135,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true });
       }
 
+      if (coll === 'tricount' && req.method === 'PUT') { // parte da Victoria no cartão, abate dos gastos do mês
+        const b = await body(req); db.tricount = db.tricount || {}; db.tricount[ym(b.mes)] = num(b.valor);
+        save(db); return send(res, 200, comFlag(db));
+      }
       if (coll === 'pago' && req.method === 'POST') { // marca/desmarca fixa como paga no mês
         const b = await body(req); const mes = ym(b.mes);
         const lista = new Set(db.pagos[mes] || []);
