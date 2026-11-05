@@ -120,7 +120,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v7</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v8</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Outros','Bares'];
@@ -251,8 +251,8 @@ function telaFixas(c){
 function telaGastos(c){
   return topo('Gastos',mesNome(mes))+`
   ${(()=>{const ligados=new Set(c.parcelas.map(p=>p.naFatura).filter(Boolean));const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m&&!ligados.has(x.g.id));const tot=c.parcelas.reduce((s,p)=>s+p.valorParcela,0)+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
-  ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total}${p.naFatura?' · valor da fatura':''} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button><div class="gacoes" style="padding:0 0 8px">${(()=>{const gg=p.naFatura&&db.gastos.find(x=>x.id===p.naFatura);const dv=gg?gg.dividido:p.dividido;return`<button class="ga ${dv?'on':''}" onclick="${gg?`dividir('${gg.id}')`:`dividirParcela('${p.id}')`}">${dv?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button>`})()}<button class="ga del" onclick="apagar('parceladas','${p.id}')">Excluir</button></div></div>`).join('')}
-  ${fp.map(({g,m})=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(m[1])}</b><small>Parcela ${+m[2]} de ${+m[3]} · da fatura · até ${mesNome(addMes(mes,+m[3]-+m[2])).toLowerCase()}</small></div><span class="v">${brl(g.valor)}</span></button><div class="gacoes" style="padding:0 0 8px"><button class="ga ${g.dividido?'on':''}" onclick="dividir('${g.id}')">${g.dividido?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button><button class="ga del" onclick="apagarGasto('${g.id}')">Excluir</button></div></div>`).join('')}
+  ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total}${p.naFatura?' · valor da fatura':''} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button></div>`).join('')}
+  ${fp.map(({g,m})=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(m[1])}</b><small>Parcela ${+m[2]} de ${+m[3]} · da fatura · até ${mesNome(addMes(mes,+m[3]-+m[2])).toLowerCase()}</small></div><span class="v">${brl(g.valor)}</span></button></div>`).join('')}
   ${!c.parcelas.length&&!fp.length?'<div class="sm">Nenhuma parcela neste mês.</div>':''}`})()}
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
