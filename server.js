@@ -80,7 +80,7 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 const CLEAN = {
   entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
-  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300) }),
+  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
   boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
@@ -156,7 +156,8 @@ const server = http.createServer(async (req, res) => {
         if (req.method === 'PUT') {
           const antes = db[coll][i];
           db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, antes, await body(req))));
-          if (coll === 'gastos' && antes.fonte === 'fatura' && antes.categoria !== db[coll][i].categoria) {
+          if (coll === 'gastos' && antes.categoria !== db[coll][i].categoria) {
+            db[coll][i].catManual = true;
             db.aprendido = db.aprendido || {}; db.aprendido[require('./gmail.js').normDesc(db[coll][i].desc.replace(/ \(\d+\/\d+\)$/, ''))] = db[coll][i].categoria;
           }
           save(db); return send(res, 200, comFlag(db));
@@ -181,6 +182,15 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// recategoriza compras da fatura que você não mudou à mão (quando as regras mudam)
+function recategorizar() {
+  const db = load(); const { categorizar } = require('./gmail.js'); let n = 0;
+  for (const g of db.gastos) if (g.fonte === 'fatura' && !g.catManual) {
+    const c = categorizar(g.desc.replace(/ \(\d+\/\d+\)$/, ''), db.aprendido || {}); if (c !== g.categoria) { g.categoria = c; n++; }
+  }
+  if (n) { save(db); console.log(`Categorias: ${n} compra(s) reclassificada(s)`); }
+}
+recategorizar();
 // ---- leitura automática do Gmail ----
 const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = (process.env.GMAIL_APP_PASS || '').replace(/\s/g, '');
 let lendo = false;
