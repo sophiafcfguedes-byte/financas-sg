@@ -136,6 +136,7 @@ const server = http.createServer(async (req, res) => {
       const load = demo ? () => demos.get(quem) : loadReal, save = demo ? d => demos.set(quem, d) : saveReal;
       const comFlag = d => Object.assign(d, { gmailLigado: !demo && !!(GMAIL_USER && GMAIL_PASS), demo });
       const db = load();
+      if (demo && req.method !== 'GET' && !p.startsWith('/api/gmail') && !p.startsWith('/api/icon')) return send(res, 403, { erro: 'Modo demonstração: só para visualização' });
       const parts = p.split('/').filter(Boolean); // ['api', coll, id?]
       const coll = parts[1], id = parts[2];
 

@@ -114,6 +114,7 @@ nav svg{width:22px;height:22px}
 .ga.on{background:var(--tabOn);border-color:var(--tabOn)}.ga.del{color:var(--warn);margin-left:auto}
 .catsel{display:block;padding:0 14px 12px}.catsel select{height:36px;border-radius:18px;border:1px solid var(--border);background:var(--bg);padding:0 30px 0 12px;font-size:14px;font-weight:600;color:var(--navy);appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px;background-repeat:no-repeat}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#16274A;color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;transition:.2s;z-index:30;pointer-events:none;white-space:nowrap}.toast.on{opacity:1;transform:translateX(-50%)}
 .toggle{display:flex;align-items:center;gap:10px;font-size:14px}
 </style>
 </head>
@@ -137,7 +138,9 @@ const diffMes=(a,b)=>{const[y1,m1]=a.split('-').map(Number),[y2,m2]=b.split('-')
 const hoje=()=>new Date().toISOString().slice(0,10);
 const dataBR=d=>d.split('-').reverse().slice(0,2).join('/');
 
+function aviso(t){let el=document.querySelector('.toast');if(!el){el=document.createElement('div');el.className='toast';el.setAttribute('role','status');document.body.appendChild(el)}el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2200)}
 async function api(url,method='GET',data){
+  if(db&&db.demo&&method!=='GET'&&url!=='/api/login'&&url!=='/api/gmail'){aviso('Modo demonstração: só para visualização');throw new Error('demo')}
   const r=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:data?JSON.stringify(data):undefined,credentials:'same-origin'});
   if(r.status===401&&url!=='/api/login'){db=null;return render()}
   const j=await r.json().catch(()=>({}));
@@ -306,7 +309,7 @@ function render(){
     const p=$('#pin');p.focus();p.onkeydown=e=>{if(e.key==='Enter')entrar()};return}
   const c=calc(mes);
   const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,poupanca:telaPoupanca};
-  app.innerHTML=`<div class="wrap">${db.demo?`<div class="sm" style="background:var(--tabOn);color:var(--ink);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>Modo demonstração</b> · dados de exemplo</span><button class="btn ghost" style="height:34px;padding:0 12px" onclick="sair()">Sair</button></div>`:''}${telas[tab](c)}</div>`;
+  app.innerHTML=`<div class="wrap">${db.demo?`<div class="sm" style="background:var(--tabOn);color:var(--ink);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>Modo demonstração</b> · só visualização</span><button class="btn ghost" style="height:34px;padding:0 12px" onclick="sair()">Sair</button></div>`:''}${telas[tab](c)}</div>`;
   if(!document.querySelector('nav')){
     const n=document.createElement('nav');document.body.appendChild(n);
     const f=document.createElement('button');f.className='fab';f.setAttribute('aria-label','Lançar gasto');f.textContent='+';f.onclick=()=>formGasto();document.body.appendChild(f);
@@ -321,9 +324,9 @@ function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
-async function dividir(id){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const novo=g.dividido?{valor:g.valor*2,dividido:false}:{valor:Math.round(g.valor/2*100)/100,dividido:true};db=await api('/api/gastos/'+id,'PUT',novo);render();scrollTo(0,y)}
-async function apagarGasto(id){const g=db.gastos.find(x=>x.id===id);if(!g||!confirm('Excluir "'+(g.desc||'gasto')+'"?'))return;const y=scrollY;db=await api('/api/gastos/'+id,'DELETE');render();scrollTo(0,y)}
-async function mudaCat(id,cat){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
+async function dividir(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const novo=g.dividido?{valor:g.valor*2,dividido:false}:{valor:Math.round(g.valor/2*100)/100,dividido:true};db=await api('/api/gastos/'+id,'PUT',novo);render();scrollTo(0,y)}
+async function apagarGasto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const g=db.gastos.find(x=>x.id===id);if(!g||!confirm('Excluir "'+(g.desc||'gasto')+'"?'))return;const y=scrollY;db=await api('/api/gastos/'+id,'DELETE');render();scrollTo(0,y)}
+async function mudaCat(id,cat){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
 function acaoBoleto(id){const b=db.boletos.find(x=>x.id===id);if(!b)return;
   abrir(`<h2>${esc(b.desc)}</h2><div class="sm">Vence ${dataBR(b.venc)}${b.ehFatura?' · as compras já estão em Gastos':''}</div><div style="font-size:28px;font-weight:800">${brl(b.valor)}</div>
   ${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código de barras</button>`:''}
@@ -332,7 +335,7 @@ async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v})
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
 // ---------- formulários ----------
-function abrir(html){fechar();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;bg.onclick=e=>{if(e.target===bg)fechar()};document.body.appendChild(bg);bg.querySelector('input')?.focus()}
+function abrir(html){if(db&&db.demo){aviso('Modo demonstração: só para visualização');return}fechar();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;bg.onclick=e=>{if(e.target===bg)fechar()};document.body.appendChild(bg);bg.querySelector('input')?.focus()}
 function fechar(){document.querySelector('.sheet-bg')?.remove()}
 const campo=(id,label,tipo='text',val='',extra='')=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${tipo}" value="${esc(val)}" ${extra}></div>`;
 const fmtMoeda=n=>(+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -342,7 +345,7 @@ document.addEventListener('input',e=>{const el=e.target;if(!el.classList||!el.cl
 const sel=(id,label,ops,val)=>`<div class="field"><label for="${id}">${label}</label><select id="${id}">${ops.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></div>`;
 const v=id=>$('#'+id).value;
 const rodape=(salvarFn,id,coll)=>`<button class="btn" onclick="${salvarFn}">Salvar</button>${id?`<button class="btn danger" onclick="apagar('${coll}','${id}')">Excluir</button>`:''}<button class="btn ghost" onclick="fechar()">Cancelar</button>`;
-async function apagar(coll,id){if(confirm('Excluir este item?'))salvar('/api/'+coll+'/'+id,'DELETE')}
+async function apagar(coll,id){if(db.demo)return aviso('Modo demonstração: só para visualização');if(confirm('Excluir este item?'))salvar('/api/'+coll+'/'+id,'DELETE')}
 
 function formRenda(){const es=entradasDe(mes);
   abrir(`<h2>Recebi dinheiro</h2>${valorCampo('val','Valor recebido')}
