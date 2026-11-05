@@ -178,7 +178,9 @@ function calc(m){
   const fixas=db.fixas.map(f=>({...f,pago:pagos.has(f.id)})).sort((a,b)=>a.dia-b.dia);
   const parcelas=db.parceladas.map(p=>({...p,n:diffMes(p.primeiroMes,m)+1})).filter(p=>p.n>=1&&p.n<=p.total);
   const gastos=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===m).sort((a,b)=>b.data.localeCompare(a.data));
-  const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).sort((a,b)=>a.venc.localeCompare(b.venc));
+  // boleto de fatura do cartão: as compras já estão em Gastos, então não soma de novo
+  const chFat=new Set(db.gastos.filter(g=>g.fonte==='fatura'&&g.chave).map(g=>g.chave.split('|')[0]));
+  const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).map(b=>({...b,ehFatura:b.ehFatura||chFat.has(b.msgId)||chFat.has(b.codigo)||/fatura|cart[aã]o/i.test(b.desc+' '+(b.assunto||''))&&db.gastos.some(g=>g.fonte==='fatura')})).sort((a,b)=>a.venc.localeCompare(b.venc));
   const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
   const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.reduce((s,p)=>s+p.valorParcela,0);
   const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);

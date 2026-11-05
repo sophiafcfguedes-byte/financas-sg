@@ -256,6 +256,7 @@ async function rodarGmail() {
         if (gChaves.has(k)) continue; gChaves.add(k); nCompras++;
         db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.data, mes: String(e.venc).slice(0, 7), categoria: categorizar(c.desc, db.aprendido || {}), forma: 'Cartão', fonte: 'fatura', chave: k });
       }
+      if (e.compras) for (const b of db.boletos) if ((e.msgId && b.msgId === e.msgId) || (e.codigo && b.codigo === e.codigo)) b.ehFatura = true;
       const chave = e.codigo || e.msgId; if (!chave || conhecidos.has(chave)) continue;
       conhecidos.add(chave); novos++;
       db.boletos.push({ id: crypto.randomUUID().slice(0, 12), desc: e.desc, valor: e.valor || 0, venc: e.venc, codigo: e.codigo || '', pago: false, fonte: 'gmail', msgId: e.msgId || '', aviso: e.protegido ? 'PDF com senha: confira valor e código no e-mail' : (!e.valor ? 'Confira o valor no e-mail' : ''), ehFatura: !!e.compras });
