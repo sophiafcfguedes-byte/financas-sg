@@ -81,7 +81,7 @@ const CLEAN = {
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
   gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20) }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
-  boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago }),
+  boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '' }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
 };
 
@@ -112,7 +112,8 @@ const server = http.createServer(async (req, res) => {
       const parts = p.split('/').filter(Boolean); // ['api', coll, id?]
       const coll = parts[1], id = parts[2];
 
-      if (coll === 'state' && req.method === 'GET') return send(res, 200, db);
+      if (coll === 'state' && req.method === 'GET') return send(res, 200, Object.assign(db, { gmailLigado: !!(GMAIL_USER && GMAIL_PASS) }));
+      if (coll === 'gmail' && req.method === 'POST') { await rodarGmail(); return send(res, 200, Object.assign(load(), { gmailLigado: !!(GMAIL_USER && GMAIL_PASS) })); }
 
       if (coll === 'config' && req.method === 'PUT') {
         const b = await body(req);
@@ -165,4 +166,29 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`Finanças SG rodando na porta ${PORT}`));
+// ---- leitura automática do Gmail ----
+const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = (process.env.GMAIL_APP_PASS || '').replace(/\s/g, '');
+let lendo = false;
+async function rodarGmail() {
+  if (!GMAIL_USER || !GMAIL_PASS || lendo) return;
+  lendo = true;
+  const db0 = load(); const g = db0.gmail || {};
+  try {
+    const r = await require('./gmail.js').lerGmail({ user: GMAIL_USER, pass: GMAIL_PASS, lastUid: g.lastUid || 0, uidValidity: g.uidValidity, log: console.log });
+    const db = load(); const conhecidos = new Set(db.boletos.map(b => b.codigo).filter(Boolean).concat(db.boletos.map(b => b.msgId).filter(Boolean)));
+    let novos = 0;
+    for (const e of r.encontrados) {
+      const chave = e.codigo || e.msgId; if (!chave || conhecidos.has(chave)) continue;
+      conhecidos.add(chave); novos++;
+      db.boletos.push({ id: crypto.randomUUID().slice(0, 12), desc: e.desc, valor: e.valor || 0, venc: e.venc, codigo: e.codigo || '', pago: false, fonte: 'gmail', msgId: e.msgId || '', aviso: e.protegido ? 'PDF com senha: confira valor e código no e-mail' : (!e.valor ? 'Confira o valor no e-mail' : '') });
+    }
+    db.gmail = { lastUid: r.lastUid, uidValidity: r.uidValidity, ultima: new Date().toISOString(), erro: '' };
+    save(db); console.log(`Gmail: ${novos} boleto(s) novo(s)`);
+  } catch (e) {
+    const db = load(); db.gmail = Object.assign({}, g, { ultima: new Date().toISOString(), erro: String(e.message || e).slice(0, 200) }); save(db);
+    console.error('Gmail erro:', e.message);
+  } finally { lendo = false; }
+}
+if (GMAIL_USER && GMAIL_PASS) { setTimeout(rodarGmail, 5000); setInterval(rodarGmail, 30 * 60 * 1000); }
+
+server.listen(PORT, () => console.log(`Finanças SG rodando na porta ${PORT}${GMAIL_USER ? ' · Gmail ligado' : ''}`));

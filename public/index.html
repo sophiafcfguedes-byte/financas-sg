@@ -238,11 +238,11 @@ function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
   return topo('Boletos',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span class="warn" style="color:var(--warn)">Em aberto</span><b>${brl(ab.reduce((s,b)=>s+b.valor,0))}</b></div>
-  ${ab.length?ab.map(b=>`<div class="card"><div class="h"><div><b>${esc(b.desc)}</b><small>Vence ${dataBR(b.venc)}</small></div><b>${brl(b.valor)}</b></div>
+  ${ab.length?ab.map(b=>`<div class="card"><div class="h"><div><b>${esc(b.desc)}</b><small>Vence ${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}</small>${b.aviso?`<small class="warn">${esc(b.aviso)}</small>`:''}</div><b>${brl(b.valor)}</b></div>
   <div class="row2">${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código</button>`:`<button class="btn ghost" onclick="formBoleto('${b.id}')">Editar</button>`}<button class="btn" onclick="pagarBoleto('${b.id}',true)">Marcar pago</button></div></div>`).join(''):'<div class="list"><div class="empty">Nenhum boleto em aberto.</div></div>'}</div>
   ${pg.length?`<div class="sec"><div class="sec-h"><span>Pagos</span></div><div class="list">${pg.map(b=>`<button class="item" onclick="formBoleto('${b.id}')"><div class="t"><b style="color:var(--muted)">${esc(b.desc)}</b><small>${dataBR(b.venc)}</small></div><span class="v" style="color:var(--muted)">${brl(b.valor)}</span></button>`).join('')}</div></div>`:''}
   <button class="add" onclick="formBoleto()">+ Adicionar boleto</button>
-  <div class="sm" style="text-align:center">Em breve: boletos lidos automaticamente do seu Gmail.</div>`;
+  ${db.gmailLigado?`<div class="sm" style="text-align:center">${db.gmail?.erro?`<span class="warn">Erro ao ler o Gmail: ${esc(db.gmail.erro)}</span>`:db.gmail?.ultima?'Gmail lido às '+new Date(db.gmail.ultima).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · lê sozinho a cada 30 min':'Lendo o Gmail…'}</div><button class="btn ghost" id="lerGmail" onclick="lerGmail()">Ler Gmail agora</button>`:'<div class="sm" style="text-align:center">Leitura do Gmail ainda não configurada.</div>'}`;
 }
 function telaPoupanca(c){
   const cf=db.config, pg=c.meta?Math.min(100,c.guardado/c.meta*100):0;
@@ -279,11 +279,12 @@ function render(){
   const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',boletos:'Boletos',poupanca:'Poupança'};
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
-function ir(t){tab=t;render();scrollTo(0,0)}
+function ir(t){tab=t;render();scrollTo(0,0);if(t==='boletos')carregar()}
 function mudaMes(n){mes=addMes(mes,n);render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
+async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
 async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v});render()}
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
