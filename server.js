@@ -85,6 +85,7 @@ const CLEAN = {
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
 };
 
+const comFlag = db => Object.assign(db, { gmailLigado: !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASS) });
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/manifest+json', '.webmanifest': 'application/manifest+json' };
 
 const server = http.createServer(async (req, res) => {
@@ -119,7 +120,7 @@ const server = http.createServer(async (req, res) => {
         const b = await body(req);
         const essen = Math.min(75, Math.max(0, num(b.pctEssenciais ?? db.config.pctEssenciais)));
         db.config = { renda: num(b.renda ?? db.config.renda), pctEssenciais: essen, pctLivre: Math.round((75 - essen) * 100) / 100 };
-        save(db); return send(res, 200, db);
+        save(db); return send(res, 200, comFlag(db));
       }
 
       if (coll === 'icon' && req.method === 'POST') { // ícone desenhado no navegador com a fonte da logo
@@ -135,18 +136,18 @@ const server = http.createServer(async (req, res) => {
         const b = await body(req); const mes = ym(b.mes);
         const lista = new Set(db.pagos[mes] || []);
         b.pago ? lista.add(str(b.id, 40)) : lista.delete(str(b.id, 40));
-        db.pagos[mes] = [...lista]; save(db); return send(res, 200, db);
+        db.pagos[mes] = [...lista]; save(db); return send(res, 200, comFlag(db));
       }
 
       if (COLLECTIONS.includes(coll)) {
         if (req.method === 'POST' && !id) {
           const item = Object.assign({ id: crypto.randomUUID().slice(0, 12) }, CLEAN[coll](await body(req)));
-          db[coll].push(item); save(db); return send(res, 200, db);
+          db[coll].push(item); save(db); return send(res, 200, comFlag(db));
         }
         const i = db[coll].findIndex(x => x.id === id);
         if (i < 0) return send(res, 404, { erro: 'não encontrado' });
-        if (req.method === 'PUT') { db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, db[coll][i], await body(req)))); save(db); return send(res, 200, db); }
-        if (req.method === 'DELETE') { db[coll].splice(i, 1); save(db); return send(res, 200, db); }
+        if (req.method === 'PUT') { db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, db[coll][i], await body(req)))); save(db); return send(res, 200, comFlag(db)); }
+        if (req.method === 'DELETE') { db[coll].splice(i, 1); save(db); return send(res, 200, comFlag(db)); }
       }
       return send(res, 404, { erro: 'rota desconhecida' });
     }
