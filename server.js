@@ -26,11 +26,11 @@ const EMPTY = {
   pagos: {} // { "2026-11": ["idDaFixa", ...] }
 };
 
-function load() {
+function loadReal() {
   try { return Object.assign(structuredClone(EMPTY), JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))); }
   catch { return structuredClone(EMPTY); }
 }
-function save(db) {
+function saveReal(db) {
   const tmp = DATA_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   fs.renameSync(tmp, DATA_FILE);
@@ -41,13 +41,31 @@ function save(db) {
 
 // ---- sessão ----
 function sign(v) { return crypto.createHmac('sha256', SECRET).update(v).digest('hex'); }
-function makeToken() { const exp = Date.now() + 1000 * 60 * 60 * 24 * 60; return exp + '.' + sign(String(exp)); }
+// sessão: "me" = você; "demo-xxxx" = visitante vendo só a interface com dados de exemplo
+function makeToken(quem = 'me') { const exp = Date.now() + 1000 * 60 * 60 * 24 * 60; return quem + '.' + exp + '.' + sign(quem + '.' + exp); }
 function validToken(t) {
-  if (!t) return false;
-  const [exp, sig] = t.split('.');
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  const good = sign(exp);
-  return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
+  if (!t) return null;
+  let parts = t.split('.'); if (parts.length === 2) parts = ['', ...parts]; // sessões antigas
+  const [quem, exp, sig] = parts;
+  if (!exp || !sig || Number(exp) < Date.now()) return null;
+  const good = sign(quem ? quem + '.' + exp : exp);
+  if (!(sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good)))) return null;
+  return quem || 'me';
+}
+const DEMO_PIN = String(process.env.FIN_DEMO_PIN || '0000');
+const demos = new Map(); // sessão de visitante -> dados de exemplo (só na memória)
+function dadosExemplo() {
+  const m = new Date().toISOString().slice(0, 7), d = n => m + '-' + String(n).padStart(2, '0');
+  const id = () => crypto.randomUUID().slice(0, 12);
+  const db = structuredClone(EMPTY);
+  db.entradas = [{ id: id(), desc: 'Salário', valor: 6500, data: d(5) }, { id: id(), desc: 'Freela', valor: 1800, data: d(15) }];
+  db.fixas = [['Aluguel', 2200], ['Condomínio', 650], ['Internet', 120], ['Celular', 60], ['Academia', 140]].map(([nome, valor]) => ({ id: id(), nome, valor, dia: 1, categoria: 'Casa' }));
+  db.gastos = [['Supermercado', 412.35, 'Mercado', 3], ['iFood', 58.9, 'Delivery', 4], ['Farmácia', 87.5, 'Saúde', 6], ['Netflix', 55.9, 'Assinaturas', 7], ['Bar com amigos', 132, 'Bares', 8], ['Posto', 220, 'Carro', 10], ['Loja de roupas', 289.9, 'Compras', 11], ['Passagem aérea', 780, 'Viagem', 12], ['Presente', 95, 'Outros', 13]]
+    .map(([desc, valor, categoria, dia]) => ({ id: id(), desc, valor, data: d(dia), categoria, forma: 'Cartão' }));
+  db.parceladas = [{ id: id(), desc: 'Notebook', valorParcela: 350, total: 10, primeiroMes: m, categoria: 'Compras' }];
+  db.boletos = [{ id: id(), desc: 'Conta de luz', valor: 168.4, venc: d(12), codigo: '', pago: false }, { id: id(), desc: 'Água', valor: 74.2, venc: d(18), codigo: '', pago: false }];
+  db.reserva = [{ id: id(), mes: m, valor: 1200, nota: 'CDB' }];
+  return db;
 }
 function cookie(req, name) {
   const m = (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith(name + '='));
@@ -86,7 +104,7 @@ const CLEAN = {
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
 };
 
-const comFlag = db => Object.assign(db, { gmailLigado: !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASS) });
+const load = loadReal, save = saveReal;
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/manifest+json', '.webmanifest': 'application/manifest+json' };
 
 const server = http.createServer(async (req, res) => {
@@ -99,23 +117,31 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/login' && req.method === 'POST') {
       if (blocked(ip)) return send(res, 429, { erro: 'Muitas tentativas. Espere 15 minutos.' });
       const b = await body(req);
-      const ok = String(b.pin || '').length === PIN.length && crypto.timingSafeEqual(Buffer.from(String(b.pin)), Buffer.from(PIN));
-      if (!ok) { fail(ip); return send(res, 401, { erro: 'PIN incorreto' }); }
+      const igual = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+      const pin = String(b.pin || '');
+      const quem = igual(pin, PIN) ? 'me' : (DEMO_PIN && DEMO_PIN !== PIN && igual(pin, DEMO_PIN)) ? 'demo-' + crypto.randomBytes(8).toString('hex') : null;
+      if (!quem) { fail(ip); return send(res, 401, { erro: 'PIN incorreto' }); }
       fails.delete(ip);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-      return send(res, 200, { ok: true }, { 'Set-Cookie': `fin=${makeToken()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * 60}${secure}` });
+      return send(res, 200, { ok: true }, { 'Set-Cookie': `fin=${makeToken(quem)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * (quem === 'me' ? 60 : 1)}${secure}` });
     }
     if (p === '/api/logout') return send(res, 200, { ok: true }, { 'Set-Cookie': 'fin=; Path=/; Max-Age=0' });
 
     // ---- API protegida ----
     if (p.startsWith('/api/')) {
-      if (!validToken(cookie(req, 'fin'))) return send(res, 401, { erro: 'login' });
+      const quem = validToken(cookie(req, 'fin'));
+      if (!quem) return send(res, 401, { erro: 'login' });
+      const demo = quem.startsWith('demo-');
+      if (demo && !demos.has(quem)) { if (demos.size > 200) demos.clear(); demos.set(quem, dadosExemplo()); }
+      const load = demo ? () => demos.get(quem) : loadReal, save = demo ? d => demos.set(quem, d) : saveReal;
+      const comFlag = d => Object.assign(d, { gmailLigado: !demo && !!(GMAIL_USER && GMAIL_PASS), demo });
       const db = load();
       const parts = p.split('/').filter(Boolean); // ['api', coll, id?]
       const coll = parts[1], id = parts[2];
 
-      if (coll === 'state' && req.method === 'GET') return send(res, 200, Object.assign(db, { gmailLigado: !!(GMAIL_USER && GMAIL_PASS) }));
-      if (coll === 'gmail' && req.method === 'POST') { await rodarGmail(); return send(res, 200, Object.assign(load(), { gmailLigado: !!(GMAIL_USER && GMAIL_PASS) })); }
+      if (coll === 'state' && req.method === 'GET') return send(res, 200, comFlag(db));
+      if (coll === 'gmail' && req.method === 'POST') { if (!demo) await rodarGmail(); return send(res, 200, comFlag(load())); }
+      if (coll === 'icon' && demo) return send(res, 200, { ok: true });
 
       if (coll === 'config' && req.method === 'PUT') {
         const b = await body(req);

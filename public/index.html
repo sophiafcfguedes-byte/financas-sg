@@ -147,6 +147,7 @@ async function api(url,method='GET',data){
 async function carregar(){try{db=await api('/api/state')}catch(e){db=null}render();if(db)iconeBonito()}
 // desenha o ícone com a fonte da logo (o servidor não tem a fonte) e envia uma vez
 async function iconeBonito(){
+  if(db.demo)return;
   try{if(localStorage.getItem('icone')==='v1')return}catch(e){}
   try{
     await document.fonts.load('italic 500 100px "Cormorant Garamond"');
@@ -178,13 +179,13 @@ function calc(m){
   const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
   const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.reduce((s,p)=>s+p.valorParcela,0);
   const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);
-  const tri=(db.tricount||{})[m]||0;
+  const tri=0;
   const gastoTotal=Math.max(0,tFix+tPar+tGas+tBol-tri);
   const faltaPagar=fixas.filter(f=>!f.pago).reduce((s,f)=>s+f.valor,0)+boletos.filter(b=>!b.pago).reduce((s,b)=>s+b.valor,0);
   const meta=renda*.25;
   const ess=tFix+tBol+gastos.filter(g=>ESSENCIAIS.includes(g.categoria)).reduce((s,g)=>s+g.valor,0)+parcelas.filter(p=>ESSENCIAIS.includes(p.categoria)).reduce((s,p)=>s+p.valorParcela,0);
   const livre=gastoTotal-ess;
-  const porCat={};if(tFix)porCat['Fixas']=tFix;boletos.filter(b=>!b.ehFatura).forEach(b=>porCat['Boletos']=(porCat['Boletos']||0)+b.valor);gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
+  const porCat={};if(tFix)porCat['Fixas']=tFix;gastos.forEach(g=>porCat[g.categoria]=(porCat[g.categoria]||0)+g.valor);parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
   const acumulado=db.reserva.filter(r=>r.mes<=m).reduce((s,r)=>s+r.valor,0);
   return{tri,renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
     sobra:renda-gastoTotal-meta};
@@ -212,7 +213,7 @@ function topo(titulo,sub){
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
   const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
-  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>Oi, Sophia</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
+  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.demo?"Olá!":"Oi, Sophia"}</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
@@ -239,7 +240,6 @@ function telaFixas(c){
 }
 function telaGastos(c){
   return topo('Gastos',mesNome(mes))+`
-  <button class="card" onclick="formTricount()" style="border:0;text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="h"><div><b>Tricount Victoria</b><small>Parte dela no cartão · abate dos seus gastos</small></div><b class="okc" style="white-space:nowrap">${c.tri?'− '+brl(c.tri):'Adicionar'}</b></div></button>
   ${(()=>{const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m);const tot=c.tPar+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
   ${c.parcelas.map(p=>`<button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button>`).join('')}
   ${fp.map(({g,m})=>`<button class="item" style="padding:6px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(m[1])}</b><small>Parcela ${+m[2]} de ${+m[3]} · da fatura · até ${mesNome(addMes(mes,+m[3]-+m[2])).toLowerCase()}</small></div><span class="v">${brl(g.valor)}</span></button>`).join('')}
@@ -260,7 +260,7 @@ function telaGraficos(c){
     const p=(rr,t)=>[cx+rr*Math.cos(t),cy+rr*Math.sin(t)];const [x1,y1]=p(R,ang),[x2,y2]=p(R,a2-0.0001),[x3,y3]=p(r,a2-0.0001),[x4,y4]=p(r,ang);
     const d=`M${x1} ${y1}A${R} ${R} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${lg} 0 ${x4} ${y4}Z`;ang=a2;return`<path d="${d}" fill="${CORES[k]||'#9AA3B5'}"/>`}).join('');
   // últimos 6 meses
-  const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5));const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
+  const INICIO='2026-11';const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5)).filter(m=>m>=INICIO);const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
   const mx=Math.max(1,...vals.map(v=>Math.max(v.g,v.r)));
   return topo('Gráficos',mesNome(mes))+`
   <div class="card"><div class="sec-h"><span>Para onde foi o dinheiro</span><b>${brl(cats.length?tot:0)}</b></div>
@@ -268,10 +268,10 @@ function telaGraficos(c){
     <svg viewBox="0 0 180 180" width="150" height="150" role="img" aria-label="Gráfico de gastos por categoria">${fatias}<text x="90" y="86" text-anchor="middle" font-size="11" fill="currentColor" opacity=".6">total</text><text x="90" y="104" text-anchor="middle" font-size="15" font-weight="800" fill="currentColor">${Math.round(tot).toLocaleString('pt-BR')}</text></svg>
     <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px">${cats.map(([k,v])=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${CORES[k]||'#9AA3B5'};flex:none"></i><span style="flex:1">${esc(k)}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div>
   ${cats.map(([k,v])=>`<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${esc(k)}</span><b>${brl(v)}</b></div><div class="bar"><i style="width:${v/cats[0][1]*100}%;background:${CORES[k]||'#9AA3B5'}"></i></div></div>`).join('')}`:'<div class="sm">Nenhum gasto neste mês.</div>'}</div>
-  <div class="card"><div class="sec-h"><span>Últimos 6 meses</span></div>
+  <div class="card"><div class="sec-h"><span>${meses.length>1?'Mês a mês':'Este mês'}</span></div>
     <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:#C9A45C"></i>Recebido</span><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--c1)"></i>Gasto</span></div>
-    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;align-items:end;height:150px">${vals.map(v=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Recebido ${brl(v.r)}" style="width:12px;border-radius:3px 3px 0 0;background:#C9A45C;height:${v.r/mx*100}%"></i><i title="Gasto ${brl(v.g)}" style="width:12px;border-radius:3px 3px 0 0;background:var(--c1);height:${v.g/mx*100}%"></i></div>`).join('')}</div>
-    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${vals.map(v=>`<span style="${v.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+v.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(meses.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${vals.map(v=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Recebido ${brl(v.r)}" style="width:${meses.length>3?12:28}px;border-radius:3px 3px 0 0;background:#C9A45C;height:${v.r/mx*100}%"></i><i title="Gasto ${brl(v.g)}" style="width:${meses.length>3?12:28}px;border-radius:3px 3px 0 0;background:var(--c1);height:${v.g/mx*100}%"></i></div>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(meses.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${vals.map(v=>`<span style="${v.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+v.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
   </div>`;
 }
 function telaBoletos(c){
@@ -306,7 +306,7 @@ function render(){
     const p=$('#pin');p.focus();p.onkeydown=e=>{if(e.key==='Enter')entrar()};return}
   const c=calc(mes);
   const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,poupanca:telaPoupanca};
-  app.innerHTML=`<div class="wrap">${telas[tab](c)}</div>`;
+  app.innerHTML=`<div class="wrap">${db.demo?`<div class="sm" style="background:var(--tabOn);color:var(--ink);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>Modo demonstração</b> · dados de exemplo</span><button class="btn ghost" style="height:34px;padding:0 12px" onclick="sair()">Sair</button></div>`:''}${telas[tab](c)}</div>`;
   if(!document.querySelector('nav')){
     const n=document.createElement('nav');document.body.appendChild(n);
     const f=document.createElement('button');f.className='fab';f.setAttribute('aria-label','Lançar gasto');f.textContent='+';f.onclick=()=>formGasto();document.body.appendChild(f);
@@ -314,6 +314,7 @@ function render(){
   const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',graficos:'Gráficos',poupanca:'Poupança'};
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
+async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
 function mudaMes(n){mes=addMes(mes,n);render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
