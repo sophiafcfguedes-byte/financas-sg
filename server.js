@@ -201,6 +201,10 @@ const server = http.createServer(async (req, res) => {
           }
           save(db); return send(res, 200, comFlag(db));
         }
+        if (req.method === 'DELETE' && coll === 'gastos') { // apagou o lançamento: some também da parcelada com o mesmo nome
+          const n = normTit(db.gastos[i].desc);
+          if (n.length >= 3) db.parceladas = db.parceladas.filter(p => { const t = normTit(p.desc); return !(t === n || (n.length >= 4 && t.length >= 4 && (t.includes(n) || n.includes(t)))); });
+        }
         if (req.method === 'DELETE') { if (db[coll][i].chave) { db.removidos = db.removidos || []; db.removidos.push(db[coll][i].chave); } db[coll].splice(i, 1); save(db); return send(res, 200, comFlag(db)); }
       }
       return send(res, 404, { erro: 'rota desconhecida' });
