@@ -181,17 +181,23 @@ async function lerGmail({ user, pass, lastUid = 0, uidValidity = null, log = () 
   try {
     log('Gmail: entrando…');
     await im.cmd('LOGIN ' + q(user) + ' ' + q(pass));
-    const sel = await im.cmd('SELECT INBOX');
+    // pasta "Todos os e-mails" (inclui o que não está na caixa de entrada)
+    const lst = await im.cmd('LIST "" "*"');
+    const todos = lst.map(p => /^\* LIST \(([^)]*)\) \S+ (.+)$/.exec(p[0].text)).find(m => m && /\\All\b/i.test(m[1]));
+    const pasta = todos ? todos[2] : 'INBOX';
+    log('Gmail: lendo a pasta ' + pasta);
+    const sel = await im.cmd('SELECT ' + pasta);
     const uv = sel.map(p => /UIDVALIDITY (\d+)/.exec(p[0].text)).find(Boolean)?.[1] || null;
     if (uidValidity && uv !== uidValidity) lastUid = 0;
     log('Gmail: conectado, procurando boletos');
-    const busca = 'X-GM-RAW ' + q('newer_than:45d (boleto OR fatura OR vencimento OR vence OR pagamento OR "linha digitavel" OR "codigo de barras" OR cobranca OR has:attachment)');
+    const ini = new Date(); const desde = `${ini.getFullYear()}/${String(ini.getMonth() + 1).padStart(2, '0')}/01`;
+    const busca = 'X-GM-RAW ' + q('after:' + desde + ' -in:spam -in:trash (boleto OR fatura OR vencimento OR vence OR pagamento OR "linha digitavel" OR "codigo de barras" OR cobranca OR has:attachment)');
     const r = await im.cmd('UID SEARCH ' + busca);
     const uids = (r.map(p => /^\* SEARCH(.*)/.exec(p[0].text)).find(Boolean)?.[1] || '').trim().split(/\s+/).filter(Boolean).map(Number).filter(u => u > lastUid).sort((a, b) => a - b);
     log(`Gmail: ${uids.length} e-mail(s) novo(s) para olhar`);
     const encontrados = [];
     let maxUid = lastUid;
-    for (const uid of uids.slice(-60)) {
+    for (const uid of uids.slice(-150)) {
       const f = await im.cmd(`UID FETCH ${uid} (RFC822.SIZE BODY.PEEK[])`);
       maxUid = Math.max(maxUid, uid);
       const parts = f.find(p => p.some(x => x.literal)); if (!parts) continue;
