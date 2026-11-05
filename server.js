@@ -190,6 +190,17 @@ function recategorizar() {
   }
   if (n) { save(db); console.log(`Categorias: ${n} compra(s) reclassificada(s)`); }
 }
+const CATS_OK = ['Compras', 'Saúde', 'Assinaturas', 'Caio', 'Delivery', 'Viagem', 'Outros', 'Bares'];
+const MAPA_CAT = { iFood: 'Delivery', Mercado: 'Compras' };
+function ajustarCategorias() {
+  const db = load(); let n = 0;
+  const fix = c => CATS_OK.includes(c) ? c : (MAPA_CAT[c] || 'Outros');
+  for (const g of db.gastos) { const c = fix(g.categoria); if (c !== g.categoria) { g.categoria = c; n++; } }
+  for (const p of db.parceladas) { const c = fix(p.categoria); if (c !== p.categoria) { p.categoria = c; n++; } }
+  for (const k in db.aprendido || {}) db.aprendido[k] = fix(db.aprendido[k]);
+  if (n) { save(db); console.log(`Categorias: ${n} ajustada(s) para a lista nova`); }
+}
+ajustarCategorias();
 recategorizar();
 // ---- leitura automática do Gmail ----
 const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = (process.env.GMAIL_APP_PASS || '').replace(/\s/g, '');
