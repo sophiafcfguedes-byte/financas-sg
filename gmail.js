@@ -281,7 +281,7 @@ async function lerGmail({ user, pass, senhaPdf = '', lastUid = 0, uidValidity = 
       const data = h.date ? new Date(h.date) : new Date();
       const vencFat = bs[0]?.venc || acharVenc(texto) || iso(data);
       const compras = textoPdf ? lerFatura(textoPdf, vencFat) : [];
-      if (compras.length >= 2) log(`Gmail: fatura com ${compras.length} compra(s) em "${decodeWords(h.subject).slice(0, 50)}"`);
+      if (compras.length >= 2) log(`Gmail: fatura (vence ${vencFat}) com ${compras.length} compra(s) somando R$ ${compras.reduce((a, c) => a + c.valor, 0).toFixed(2)} em "${decodeWords(h.subject).slice(0, 50)}"`);
       for (const b of bs) encontrados.push({ ...b, compras: compras.length >= 2 ? compras : undefined, venc: b.venc || acharVenc(texto) || iso(data), desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200) });
       if (!bs.length && compras.length >= 2) encontrados.push({ faturaSemCodigo: true, compras, valor: 0, venc: vencFat, desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200) });
       else if (!bs.length && protegido) encontrados.push({ protegido: true, desc: nomeRemetente(h.from, h.subject), assunto: decodeWords(h.subject).slice(0, 100), msgId: (h['message-id'] || '').slice(0, 200), venc: acharVenc(texto) || iso(data) });

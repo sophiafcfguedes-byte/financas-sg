@@ -80,7 +80,7 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 const CLEAN = {
   entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
-  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual }),
+  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
   boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
@@ -201,6 +201,13 @@ function ajustarCategorias() {
   if (n) { save(db); console.log(`Categorias: ${n} ajustada(s) para a lista nova`); }
 }
 ajustarCategorias();
+// compras da fatura contam no mês em que a fatura vence
+(function mesDaFatura() {
+  const db = load(); const venc = {}; let n = 0;
+  for (const b of db.boletos) { if (b.msgId) venc[b.msgId] = b.venc; if (b.codigo) venc[b.codigo] = b.venc; }
+  for (const g of db.gastos) if (g.fonte === 'fatura' && !g.mes) { const v = venc[(g.chave || '').split('|')[0]]; if (v) { g.mes = v.slice(0, 7); n++; } }
+  if (n) { save(db); console.log(`Fatura: ${n} compra(s) movida(s) para o mês do vencimento`); }
+})();
 recategorizar();
 // ---- leitura automática do Gmail ----
 const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = (process.env.GMAIL_APP_PASS || '').replace(/\s/g, '');
@@ -220,14 +227,14 @@ async function rodarGmail() {
       if (e.compras) for (const c of e.compras) {
         const k = (e.msgId || e.codigo) + '|' + c.data + '|' + c.desc + '|' + c.valor + '|' + c.parcela;
         if (gChaves.has(k)) continue; gChaves.add(k); nCompras++;
-        db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.parcela ? e.venc : c.data, categoria: categorizar(c.desc, db.aprendido || {}), forma: 'Cartão', fonte: 'fatura', chave: k });
+        db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.data, mes: String(e.venc).slice(0, 7), categoria: categorizar(c.desc, db.aprendido || {}), forma: 'Cartão', fonte: 'fatura', chave: k });
       }
       const chave = e.codigo || e.msgId; if (!chave || conhecidos.has(chave)) continue;
       conhecidos.add(chave); novos++;
       db.boletos.push({ id: crypto.randomUUID().slice(0, 12), desc: e.desc, valor: e.valor || 0, venc: e.venc, codigo: e.codigo || '', pago: false, fonte: 'gmail', msgId: e.msgId || '', aviso: e.protegido ? 'PDF com senha: confira valor e código no e-mail' : (!e.valor ? 'Confira o valor no e-mail' : ''), ehFatura: !!e.compras });
     }
     db.gmail = { versao: 2, lastUid: r.lastUid, uidValidity: r.uidValidity, ultima: new Date().toISOString(), erro: '' };
-    save(db); console.log(`Gmail: ${novos} boleto(s) novo(s), ${nCompras} compra(s) de fatura`);
+    save(db); console.log(`Gmail: ${novos} boleto(s) novo(s), ${nCompras} compra(s) de fatura nova(s)`);
   } catch (e) {
     const db = load(); db.gmail = Object.assign({}, g, { ultima: new Date().toISOString(), erro: String(e.message || e).slice(0, 200) }); save(db);
     console.error('Gmail erro:', e.message);
