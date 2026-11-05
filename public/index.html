@@ -106,6 +106,9 @@ nav svg{width:22px;height:22px}
 .login input{height:56px;width:220px;text-align:center;font-size:24px;letter-spacing:8px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
 .err{color:var(--warn);font-size:14px;min-height:20px}
 .gasto{border-bottom:1px solid var(--line)}.gasto:last-child{border-bottom:0}.gasto .item{border-bottom:0;padding-bottom:6px}
+.catchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
+.cc{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--border);background:transparent;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.cc.on{background:#1D6B4A;border-color:#1D6B4A;color:#fff}
 .catsel{display:block;padding:0 14px 12px}.catsel select{height:36px;border-radius:18px;border:1px solid var(--border);background:var(--bg);padding:0 30px 0 12px;font-size:14px;font-weight:600;color:var(--navy);appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px;background-repeat:no-repeat}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .toggle{display:flex;align-items:center;gap:10px;font-size:14px}
@@ -242,7 +245,7 @@ function telaGastos(c){
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
   <div class="list">${c.gastos.length?c.gastos.map(g=>`<div class="gasto"><button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>
-    <label class="catsel"><span class="sr">Categoria de ${esc(g.desc||'gasto')}</span><select onchange="mudaCat('${g.id}',this.value)">${(CATS.includes(g.categoria)?CATS:[g.categoria,...CATS]).map(k=>`<option ${k===g.categoria?'selected':''}>${k}</option>`).join('')}</select></label></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
+    <div class="catchips" role="group" aria-label="Categoria de ${esc(g.desc||'gasto')}">${(CATS.includes(g.categoria)?CATS:[g.categoria,...CATS]).map(k=>`<button class="cc ${k===g.categoria?'on':''}" aria-pressed="${k===g.categoria}" onclick="mudaCat('${g.id}','${k}')">${k}</button>`).join('')}</div></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
 }
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
@@ -290,7 +293,7 @@ function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
-async function mudaCat(id,cat){db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render()}
+async function mudaCat(id,cat){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
 async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v});render()}
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
