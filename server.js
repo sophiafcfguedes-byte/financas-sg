@@ -80,7 +80,7 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 const CLEAN = {
   entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
-  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
+  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, dividido: !!b.dividido, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40) }),
   boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
@@ -162,7 +162,7 @@ const server = http.createServer(async (req, res) => {
           }
           save(db); return send(res, 200, comFlag(db));
         }
-        if (req.method === 'DELETE') { db[coll].splice(i, 1); save(db); return send(res, 200, comFlag(db)); }
+        if (req.method === 'DELETE') { if (db[coll][i].chave) { db.removidos = db.removidos || []; db.removidos.push(db[coll][i].chave); } db[coll].splice(i, 1); save(db); return send(res, 200, comFlag(db)); }
       }
       return send(res, 404, { erro: 'rota desconhecida' });
     }
@@ -220,7 +220,7 @@ async function rodarGmail() {
     const r = await require('./gmail.js').lerGmail({ user: GMAIL_USER, pass: GMAIL_PASS, senhaPdf: process.env.FATURA_PDF_PASS || '', lastUid: g.versao === 2 ? (g.lastUid || 0) : 0, uidValidity: g.uidValidity, log: console.log });
     const db = load(); const conhecidos = new Set(db.boletos.map(b => b.codigo).filter(Boolean).concat(db.boletos.map(b => b.msgId).filter(Boolean)));
     let novos = 0;
-    const gChaves = new Set(db.gastos.map(g => g.chave).filter(Boolean));
+    const gChaves = new Set(db.gastos.map(g => g.chave).filter(Boolean).concat(db.removidos || []));
     const { categorizar } = require('./gmail.js');
     let nCompras = 0;
     for (const e of r.encontrados) {

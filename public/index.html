@@ -109,6 +109,9 @@ nav svg{width:22px;height:22px}
 .catchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
 .cc{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--border);background:transparent;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
 .cc.on{background:#1D6B4A;border-color:#1D6B4A;color:#fff}
+.catchips{padding-bottom:8px}.gacoes{display:flex;gap:8px;padding:0 14px 12px}
+.ga{height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer}
+.ga.on{background:var(--tabOn);border-color:var(--tabOn)}.ga.del{color:var(--warn);margin-left:auto}
 .catsel{display:block;padding:0 14px 12px}.catsel select{height:36px;border-radius:18px;border:1px solid var(--border);background:var(--bg);padding:0 30px 0 12px;font-size:14px;font-weight:600;color:var(--navy);appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px;background-repeat:no-repeat}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .toggle{display:flex;align-items:center;gap:10px;font-size:14px}
@@ -244,7 +247,8 @@ function telaGastos(c){
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
   <div class="list">${c.gastos.length?c.gastos.map(g=>`<div class="gasto"><button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>
-    <div class="catchips" role="group" aria-label="Categoria de ${esc(g.desc||'gasto')}">${(CATS.includes(g.categoria)?CATS:[g.categoria,...CATS]).map(k=>`<button class="cc ${k===g.categoria?'on':''}" aria-pressed="${k===g.categoria}" onclick="mudaCat('${g.id}','${k}')">${k}</button>`).join('')}</div></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
+    <div class="catchips" role="group" aria-label="Categoria de ${esc(g.desc||'gasto')}">${(CATS.includes(g.categoria)?CATS:[g.categoria,...CATS]).map(k=>`<button class="cc ${k===g.categoria?'on':''}" aria-pressed="${k===g.categoria}" onclick="mudaCat('${g.id}','${k}')">${k}</button>`).join('')}</div>
+    <div class="gacoes"><button class="ga ${g.dividido?'on':''}" aria-pressed="${!!g.dividido}" onclick="dividir('${g.id}')">${g.dividido?'Dividido ÷2 · desfazer':'÷ 2 Dividir'}</button><button class="ga del" aria-label="Excluir ${esc(g.desc||'gasto')}" onclick="apagarGasto('${g.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Excluir</button></div></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
 }
 
 const CORES={Compras:'var(--c1)',Mercado:'#4D6391',Saúde:'#1D6B4A',Assinaturas:'#8E7BEA',Caio:'#C9A45C',Delivery:'#E07A3F',Viagem:'#2F8FB5',Carro:'#6B4F3A',Bares:'#B23A5B',Outros:'#9AA3B5',Fixas:'#3E5C8A',Boletos:'#7C8798'};
@@ -316,6 +320,8 @@ function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
+async function dividir(id){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const novo=g.dividido?{valor:g.valor*2,dividido:false}:{valor:Math.round(g.valor/2*100)/100,dividido:true};db=await api('/api/gastos/'+id,'PUT',novo);render();scrollTo(0,y)}
+async function apagarGasto(id){const g=db.gastos.find(x=>x.id===id);if(!g||!confirm('Excluir "'+(g.desc||'gasto')+'"?'))return;const y=scrollY;db=await api('/api/gastos/'+id,'DELETE');render();scrollTo(0,y)}
 async function mudaCat(id,cat){const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(g&&g.categoria===cat)return;if(g)g.categoria=cat;render();scrollTo(0,y);db=await api('/api/gastos/'+id,'PUT',{categoria:cat});render();scrollTo(0,y)}
 function acaoBoleto(id){const b=db.boletos.find(x=>x.id===id);if(!b)return;
   abrir(`<h2>${esc(b.desc)}</h2><div class="sm">Vence ${dataBR(b.venc)}${b.ehFatura?' · as compras já estão em Gastos':''}</div><div style="font-size:28px;font-weight:800">${brl(b.valor)}</div>
