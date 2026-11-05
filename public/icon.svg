@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#16274A"/>
+  <rect x="56" y="56" width="400" height="400" rx="84" fill="none" stroke="#C9A45C" stroke-width="4"/>
+  <text x="212" y="340" text-anchor="middle" font-family="Cormorant Garamond, Garamond, 'Times New Roman', serif" font-style="italic" font-weight="500" font-size="300" fill="#D6B370">S</text>
+  <text x="300" y="398" text-anchor="middle" font-family="Cormorant Garamond, Garamond, 'Times New Roman', serif" font-style="italic" font-weight="500" font-size="300" fill="#F6F3EC" fill-opacity="0.92">G</text>
+</svg>
