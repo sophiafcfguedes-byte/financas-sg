@@ -20,12 +20,12 @@
   --bg:#F6F3EC; --card:#FFFFFF; --ink:#141B2B; --muted:#5E6577; --line:#ECEEF3; --border:#D9DEE8;
   --navy:#16274A; --navy2:#0E1B36; --hero:#16274A; --heroMuted:#C7D0E3; --track:#34466B;
   --gold:#C9A45C; --goldSoft:#D6B370; --goldBtn:#B8913F; --warn:#B04A12; --ok:#1D6B4A; --okBg:#E3F0EA;
-  --nav:#FFFFFF; --c1:#16274A; --wmOp:.35; --wmGcolor:#16274A;
+  --nav:#FFFFFF; --c1:#16274A; --tabOn:#E1E7F3; --wmOp:.35; --wmGcolor:#16274A;
 }
 @media (prefers-color-scheme: dark){:root{
   --bg:#0B1220; --card:#162036; --ink:#EEF1F6; --muted:#9AA5BA; --line:#1F2A42; --border:#2A3754;
   --navy:#D6B370; --navy2:#E8D3A0; --hero:#1C3160; --heroMuted:#C7D0E3; --track:#34466B;
-  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --c1:#7D95CC; --wmOp:.3; --wmGcolor:#EEF1F6;
+  --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --c1:#7D95CC; --tabOn:#22304F; --wmOp:.3; --wmGcolor:#EEF1F6;
 }}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
@@ -88,7 +88,7 @@ button,input,select{font:inherit;color:inherit}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--nav);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
 nav button{height:64px;border:0;background:none;font-size:11px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
-nav button.on{color:var(--navy)}
+nav button{position:relative}nav button.on{color:var(--navy)}nav button.on::before{content:'';position:absolute;inset:6px 6px;border-radius:12px;background:var(--tabOn);z-index:-1}nav div{position:relative;z-index:0}
 nav svg{width:22px;height:22px}
 /* folha de formulário */
 .sheet-bg{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
@@ -208,14 +208,13 @@ function topo(titulo,sub){
 }
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
-  const prox=[...c.fixas.filter(f=>!f.pago).map(f=>({nome:f.nome,valor:f.valor,dia:+f.dia,tipo:'fixa',id:f.id})),...c.boletos.filter(b=>!b.pago).map(b=>({nome:b.desc,valor:b.valor,dia:+b.venc.slice(8),tipo:'bol',id:b.id,b}))].sort((a,b)=>a.dia-b.dia);
   const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
   return `<div class="top"><div><small>${mesNome(mes)}</small><h1>Oi, Sophia</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row"><button onclick="formRenda()" aria-label="Editar renda do mês" style="display:flex;flex-direction:column;gap:2px;padding:0;border:0;background:none;color:#fff;text-align:left;cursor:pointer"><span class="lbl" style="display:flex;align-items:center;gap:4px">Recebo <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b>${hid(c.renda)}</b></button><div><span class="lbl">Gastei</span><b>${hid(c.gastoTotal)}</b></div><div><span class="lbl">Falta pagar</span><b>${hid(c.faltaPagar)}</b></div></div>
+    <div class="row"><button onclick="formRenda()" aria-label="Editar renda do mês" style="display:flex;flex-direction:column;gap:2px;padding:0;border:0;background:none;color:#fff;text-align:left;cursor:pointer"><span class="lbl" style="display:flex;align-items:center;gap:4px">Recebo <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b>${hid(c.renda)}</b></button><div><span class="lbl">Gastei</span><b>${hid(c.gastoTotal)}</b></div><div><span class="lbl">Reserva</span><b>${hid(c.meta)}</b></div></div>
   </section>
   <button class="add" onclick="formRenda()">${c.renda?'+ Recebi dinheiro':'+ Registrar o que recebi'}</button>
   <div class="grid3">
@@ -223,8 +222,8 @@ function telaInicio(c){
     <div class="tile"><span>Variáveis</span><b>${brl(Math.max(0,c.tGas+c.tPar+c.tBol-c.tri))}</b></div>
     <div class="tile ok"><span>Guardado</span><b>${brl(c.guardado)}</b></div>
   </div>
-  <div class="sec"><div class="sec-h"><span>A pagar</span><b>${brl(c.faltaPagar)}</b></div>
-    <div class="list">${prox.length?prox.map(p=>{const d=p.dia-hojeD.getDate();const q=noMes&&d>=0&&d<=3;const atr=noMes&&d<0;return`<button class="item" onclick="${p.tipo==='bol'?`acaoBoleto('${p.id}')`:`formFixa('${p.id}')`}"><div class="t"><b>${esc(p.nome)}</b><small class="${q||atr?'warn':''}">${atr?'Venceu dia '+p.dia:q?(d===0?'Vence hoje':'Vence em '+d+(d===1?' dia':' dias')):'Vence dia '+p.dia}${p.b?.fonte==='gmail'?' · do Gmail':''}${p.b?.aviso?' · '+esc(p.b.aviso):''}</small></div><span class="v">${brl(p.valor)}</span></button>`}).join(''):'<div class="empty">Nada para pagar este mês.</div>'}</div>
+  <div class="sec"><div class="sec-h"><span>Contas do mês</span><b>${brl(c.boletos.reduce((a,b)=>a+b.valor,0))}</b></div>
+    <div class="list">${c.boletos.length?c.boletos.map(b=>`<button class="item" onclick="acaoBoleto('${b.id}')"><div class="t"><b>${esc(b.desc)}</b><small>${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}${b.ehFatura?' · compras em Gastos':''}${b.aviso?' · '+esc(b.aviso):''}</small></div><span class="v">${brl(b.valor)}</span></button>`).join(''):'<div class="empty">Nenhuma conta neste mês.</div>'}</div>
     <div class="row2"><button class="btn ghost" onclick="formBoleto()">+ Boleto</button>${db.gmailLigado?`<button class="btn ghost" id="lerGmail" onclick="lerGmail()">Ler Gmail</button>`:'<span></span>'}</div>
     ${db.gmailLigado?`<div class="sm" style="text-align:center">${db.gmail?.erro?`<span class="warn">Erro ao ler o Gmail: ${esc(db.gmail.erro)}</span>`:db.gmail?.ultima?'Gmail lido às '+new Date(db.gmail.ultima).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · lê sozinho a cada 30 min':''}</div>`:''}
   </div>`;
@@ -232,7 +231,7 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b><small class="${f.pago?'okc':'warn'}">Dia ${f.dia} · ${f.pago?'pago':'em aberto'}</small></div><span class="v">${brl(f.valor)}</span></button>`).join(''):'<div class="empty">Cadastre aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button>`).join(''):'<div class="empty">Cadastre aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>
   <button class="add" onclick="formFixa()">+ Adicionar despesa fixa</button>`;
 }
 function telaGastos(c){
@@ -321,8 +320,7 @@ async function mudaCat(id,cat){const y=scrollY;const g=db.gastos.find(x=>x.id===
 function acaoBoleto(id){const b=db.boletos.find(x=>x.id===id);if(!b)return;
   abrir(`<h2>${esc(b.desc)}</h2><div class="sm">Vence ${dataBR(b.venc)}${b.ehFatura?' · as compras já estão em Gastos':''}</div><div style="font-size:28px;font-weight:800">${brl(b.valor)}</div>
   ${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código de barras</button>`:''}
-  <button class="btn" onclick="pagarBoleto('${id}',true).then(fechar)">Marcar como pago</button>
-  <button class="btn ghost" onclick="formBoleto('${id}')">Editar</button><button class="btn ghost" onclick="fechar()">Fechar</button>`)}
+  <button class="btn ghost" onclick="formBoleto('${id}')">Editar</button><button class="btn danger" onclick="apagar('boletos','${id}')">Excluir</button><button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v});render()}
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
@@ -347,9 +345,8 @@ function formRenda(){const es=entradasDe(mes);
   <div class="list">${es.length?es.map(e=>`<div class="item"><div class="t"><b>${esc(e.desc||'Entrada')}</b><small>${dataBR(e.data)}</small></div><span class="v">${brl(e.valor)}</span><button class="icon-btn" aria-label="Excluir" onclick="apagar('entradas','${e.id}')">×</button></div>`).join(''):'<div class="empty">Nada registrado ainda neste mês.</div>'}</div>
   <button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 function formFixa(id){const f=db.fixas.find(x=>x.id===id)||{};const pago=id&&(db.pagos[mes]||[]).includes(id);
-  abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}<div class="row2">${valorCampo('val','Valor',f.valor)}${campo('d','Dia do vencimento','number',f.dia||'','min="1" max="31" inputmode="numeric"')}</div>${sel('cat','Categoria',['Casa','Contas','Assinaturas','Educação','Saúde','Transporte','Outros'],f.categoria||'Casa')}
-  ${id?`<button class="btn ${pago?'ghost':''}" onclick="pagarFixa('${id}',${!pago})">${pago?'Desmarcar pago em '+MESES[+mes.slice(5)-1]:'Marcar como paga em '+MESES[+mes.slice(5)-1]}</button>`:''}
-  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),dia:v('d'),categoria:v('cat')})`,id,'fixas')}`)}
+  abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}${valorCampo('val','Valor',f.valor)}${sel('cat','Categoria',['Casa','Contas','Assinaturas','Educação','Saúde','Transporte','Outros'],f.categoria||'Casa')}
+  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),categoria:v('cat')})`,id,'fixas')}`)}
 function formGasto(id){const g=db.gastos.find(x=>x.id===id)||{};let cat=g.categoria||'Compras';
   abrir(`<h2>${id?'Editar gasto':'Novo gasto'}</h2>${valorCampo('val','Valor',g.valor)}
   <div class="field"><label>Categoria</label><div class="chips" id="chips">${CATS.map(k=>`<button class="chip ${k===cat?'on':''}" data-c="${k}">${k}</button>`).join('')}</div></div>
@@ -367,7 +364,6 @@ function formBoleto(id){const b=db.boletos.find(x=>x.id===id)||{};
   abrir(`<h2>${id?'Editar':'Novo'} boleto</h2>${campo('desc','De quem é',undefined,b.desc,'placeholder="Ex.: Fatura Itaú"')}
   <div class="row2">${valorCampo('val','Valor',b.valor)}${campo('venc','Vencimento','date',b.venc||mes+'-10')}</div>
   ${campo('cod','Código de barras / Pix (opcional)',undefined,b.codigo)}
-  ${id?`<button class="btn ghost" onclick="pagarBoleto('${id}',${!b.pago}).then(fechar)">${b.pago?'Marcar como em aberto':'Marcar como pago'}</button>`:''}
   ${rodape(`salvar('/api/boletos${id?'/'+id:''}','${id?'PUT':'POST'}',{desc:v('desc'),valor:v('val'),venc:v('venc'),codigo:v('cod')})`,id,'boletos')}`)}
 function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Quanto a Victoria te deve em '+MESES[+mes.slice(5)-1],(db.tricount||{})[mes]||'')}
   <div class="sm">Esse valor sai dos seus gastos do mês, porque vocês usam o mesmo cartão.</div>
