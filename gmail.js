@@ -36,7 +36,7 @@ function categorizar(desc, aprendido = {}) {
   const n = normDesc(desc);
   if (aprendido[n]) return aprendido[n];
   for (const [cat, re] of REGRAS) if (re.test(n)) return cat;
-  return 'Outros';
+  return ''; // sem categoria: você escolhe no app
 }
 const IGNORAR = /PAGAMENTO|PAGTO|TOTAL|SALDO|ANUIDADE DIF|ENCARGOS|JUROS DE|IOF|LIMITE|CREDITO ROTATIVO|FATURA ANTERIOR|ESTORNO|DEVOLUC/;
 function lerFatura(texto, vencISO) {

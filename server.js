@@ -60,7 +60,7 @@ function dadosExemplo() {
   const db = structuredClone(EMPTY);
   db.entradas = [{ id: id(), desc: 'Salário', valor: 6500, data: d(5) }, { id: id(), desc: 'Freela', valor: 1800, data: d(15) }];
   db.fixas = [['Aluguel', 2200], ['Condomínio', 650], ['Internet', 120], ['Celular', 60], ['Academia', 140]].map(([nome, valor]) => ({ id: id(), nome, valor, dia: 1, categoria: 'Casa' }));
-  db.gastos = [['Supermercado', 412.35, 'Mercado', 3], ['iFood', 58.9, 'Delivery', 4], ['Farmácia', 87.5, 'Saúde', 6], ['Netflix', 55.9, 'Assinaturas', 7], ['Bar com amigos', 132, 'Bares', 8], ['Posto', 220, 'Carro', 10], ['Loja de roupas', 289.9, 'Compras', 11], ['Passagem aérea', 780, 'Viagem', 12], ['Presente', 95, 'Outros', 13]]
+  db.gastos = [['Supermercado', 412.35, 'Mercado', 3], ['iFood', 58.9, 'Delivery', 4], ['Farmácia', 87.5, 'Saúde', 6], ['Netflix', 55.9, 'Assinaturas', 7], ['Bar com amigos', 132, 'Bares', 8], ['Posto', 220, 'Carro', 10], ['Loja de roupas', 289.9, 'Compras', 11], ['Passagem aérea', 780, 'Viagem', 12], ['Presente', 95, 'Compras', 13]]
     .map(([desc, valor, categoria, dia]) => ({ id: id(), desc, valor, data: d(dia), categoria, forma: 'Cartão' }));
   db.parceladas = [{ id: id(), desc: 'Notebook', valorParcela: 350, total: 10, primeiroMes: m, categoria: 'Compras' }];
   db.boletos = [{ id: id(), desc: 'Conta de luz', valor: 168.4, venc: d(12), codigo: '', pago: false }, { id: id(), desc: 'Água', valor: 74.2, venc: d(18), codigo: '', pago: false }];
@@ -98,7 +98,7 @@ const ymd = v => /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : new Date().toISOString().sl
 const CLEAN = {
   entradas: b => ({ desc: str(b.desc, 60), valor: num(b.valor), data: ymd(b.data) }),
   fixas: b => ({ nome: str(b.nome), valor: num(b.valor), boleto: !!b.boleto, dia: Math.min(31, Math.max(1, parseInt(b.dia) || 1)), categoria: str(b.categoria || 'Casa', 40) }),
-  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || 'Outros', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, dividido: !!b.dividido, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
+  gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || '', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, dividido: !!b.dividido, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40), dividido: !!b.dividido }),
   boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
   reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
@@ -233,11 +233,11 @@ function recategorizar() {
   }
   if (n) { save(db); console.log(`Categorias: ${n} compra(s) reclassificada(s)`); }
 }
-const CATS_OK = ['Compras', 'Mercado', 'Saúde', 'Assinaturas', 'Caio', 'Delivery', 'Viagem', 'Carro', 'Outros', 'Bares'];
+const CATS_OK = ['Compras', 'Mercado', 'Saúde', 'Assinaturas', 'Caio', 'Delivery', 'Viagem', 'Carro', 'Bares'];
 const MAPA_CAT = { iFood: 'Delivery' };
 function ajustarCategorias() {
   const db = load(); let n = 0;
-  const fix = c => CATS_OK.includes(c) ? c : (MAPA_CAT[c] || 'Outros');
+  const fix = c => CATS_OK.includes(c) ? c : (MAPA_CAT[c] || '');
   for (const g of db.gastos) { const c = fix(g.categoria); if (c !== g.categoria) { g.categoria = c; n++; } }
   for (const p of db.parceladas) { const c = fix(p.categoria); if (c !== p.categoria) { p.categoria = c; n++; } }
   for (const k in db.aprendido || {}) db.aprendido[k] = fix(db.aprendido[k]);
