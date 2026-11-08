@@ -120,7 +120,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v10</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v11</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -231,10 +231,9 @@ function telaInicio(c){
     <div class="row"><button onclick="formRenda()" aria-label="Editar renda do mês" style="display:flex;flex-direction:column;gap:2px;padding:0;border:0;background:none;color:#fff;text-align:left;cursor:pointer"><span class="lbl" style="display:flex;align-items:center;gap:4px">Recebo <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b>${hid(c.renda)}</b></button><div><span class="lbl">Gastei</span><b>${hid(c.gastoTotal)}</b></div><div><span class="lbl">Reserva</span><b>${hid(c.meta)}</b></div></div>
   </section>
   <button class="add" onclick="formRenda()">${c.renda?'+ Recebi dinheiro':'+ Registrar o que recebi'}</button>
-  <div class="grid3">
+  <div class="grid3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
     <div class="tile"><span>Fixas</span><b>${brl(c.tFix)}</b></div>
     <div class="tile"><span>Variáveis</span><b>${brl(Math.max(0,c.tGas+c.tPar+c.tBol-c.tri))}</b></div>
-    <div class="tile ok"><span>Guardado</span><b>${brl(c.guardado)}</b></div>
   </div>
   <div class="sec"><div class="sec-h"><span>Contas do mês</span><b>${brl(c.boletos.reduce((a,b)=>a+b.valor,0))}</b></div>
     <div class="list">${c.boletos.length?c.boletos.map(b=>`<button class="item" onclick="acaoBoleto('${b.id}')"><div class="t"><b>${esc(b.desc)}</b><small>${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}${b.ehFatura?' · compras em Gastos':''}${b.aviso?' · '+esc(b.aviso):''}</small></div><span class="v">${brl(b.valor)}</span></button>`).join(''):'<div class="empty">Nenhuma conta neste mês.</div>'}</div>
