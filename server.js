@@ -160,7 +160,7 @@ const server = http.createServer(async (req, res) => {
       const arq = outro ? arquivoDe(outro) : DATA_FILE;
       const load = demo ? () => demos.get(quem) : () => loadReal(arq), save = demo ? d => demos.set(quem, d) : d => { sincronizarParcelas(d); saveReal(d, arq); };
       const sou = quem === 'me';
-      const comFlag = d => Object.assign(d, { gmailLigado: sou && !!(GMAIL_USER && GMAIL_PASS), demo, nome: demo ? '' : outro ? (usuario.nome || outro) : 'Sophia', trocarSenha: !!(usuario && usuario.trocar) });
+      const comFlag = d => Object.assign(d, { gmailLigado: sou && !!(GMAIL_USER && GMAIL_PASS), demo, nome: demo ? '' : outro ? (usuario.nome || outro) : 'Sophia', trocarSenha: !!(usuario && usuario.trocar), mono: (usuario && usuario.mono) || 'SG', tema: (usuario && usuario.tema) || '' });
       if (p === '/api/senha' && req.method === 'POST') { // troca de senha do usuário (obrigatória no 1º acesso)
         if (!outro) return send(res, 400, { erro: 'Sua senha é o PIN configurado na máquina' });
         const b = await body(req); const nova = String(b.senha || '');
@@ -179,7 +179,7 @@ const server = http.createServer(async (req, res) => {
 
       if (coll === 'state' && req.method === 'GET') { if (sincronizarParcelas(db)) save(db); return send(res, 200, comFlag(db)); }
       if (coll === 'gmail' && req.method === 'POST') { if (sou) await rodarGmail(); return send(res, 200, comFlag(load())); }
-      if (coll === 'icon' && !sou) return send(res, 200, { ok: true });
+      if (coll === 'icon' && demo) return send(res, 200, { ok: true });
 
       if (coll === 'config' && req.method === 'PUT') {
         const b = await body(req);
@@ -194,7 +194,7 @@ const server = http.createServer(async (req, res) => {
         const b = await body(req);
         for (const sz of ['180', '512']) {
           const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(b['png' + sz] || ''));
-          if (m) fs.writeFileSync(path.join(DATA_DIR, `icon-${sz}.png`), Buffer.from(m[1], 'base64'));
+          if (m) fs.writeFileSync(path.join(DATA_DIR, outro ? `icon-${outro}-${sz}.png` : `icon-${sz}.png`), Buffer.from(m[1], 'base64'));
         }
         return send(res, 200, { ok: true });
       }
@@ -236,6 +236,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ---- arquivos do app ----
+    if (p === '/icon-180.png' || p === '/icon-512.png') { // ícone da pessoa logada (cada uma tem o seu)
+      const q = validToken(cookie(req, 'fin')) || ''; const sz = p.match(/\d+/)[0];
+      const pessoal = q.startsWith('u-') && path.join(DATA_DIR, `icon-${q.slice(2)}-${sz}.png`);
+      const f = pessoal && fs.existsSync(pessoal) ? pessoal : path.join(DATA_DIR, p.slice(1));
+      if (fs.existsSync(f)) { res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache' }); return fs.createReadStream(f).pipe(res); }
+    }
     if ((p === '/icon-180.png' || p === '/icon-512.png') && fs.existsSync(path.join(DATA_DIR, p.slice(1)))) {
       res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=3600' });
       return fs.createReadStream(path.join(DATA_DIR, p.slice(1))).pipe(res);

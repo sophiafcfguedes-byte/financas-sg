@@ -27,6 +27,9 @@
   --navy:#D6B370; --navy2:#E8D3A0; --hero:#1C3160; --heroMuted:#C7D0E3; --track:#34466B;
   --warn:#FFA273; --ok:#7FD9AE; --okBg:#14302A; --nav:#111A2C; --c1:#7D95CC; --tabOn:#22304F; --wmOp:.3; --wmGcolor:#EEF1F6;
 }}
+body.bordo{--navy:#7A1F33;--navy2:#5C1525;--hero:#6B1A2B;--heroMuted:#E8C9CF;--track:#8E3A4C;--c1:#6B1A2B;--wmGcolor:#6B1A2B;--tabOn:#F3E1E4;--gold:#C9967A;--goldSoft:#E0B9A2;--goldBtn:#A8705A}
+body.bordo .btn:not(.ghost):not(.danger),body.bordo .mono,body.bordo .chip.on{background:#6B1A2B;border-color:#6B1A2B}
+@media (prefers-color-scheme: dark){body.bordo{--bg:#140A0D;--card:#24131A;--line:#33202A;--border:#45303A;--nav:#1B0E13;--navy:#E0B9A2;--hero:#5A1726;--c1:#D98A9C;--wmGcolor:#EEF1F6;--tabOn:#3A1820}body.bordo{background:#140A0D}body.bordo .btn:not(.ghost):not(.danger){background:#C9967A;color:#1A0B10}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
 body{min-height:100vh;padding-bottom:calc(170px + env(safe-area-inset-bottom))}
@@ -120,7 +123,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v12</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v13</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -151,21 +154,21 @@ async function api(url,method='GET',data){
 async function carregar(){try{db=await api('/api/state')}catch(e){db=null}render();if(db)iconeBonito()}
 // desenha o ícone com a fonte da logo (o servidor não tem a fonte) e envia uma vez
 async function iconeBonito(){
-  if(db.demo||db.nome!=='Sophia')return;
-  try{if(localStorage.getItem('icone')==='v1')return}catch(e){}
+  if(db.demo||db.trocarSenha)return;const mo=db.mono||'SG',bd=db.tema==='bordo',chave='icone-'+mo+(bd?'b':'')+'v2';
+  try{if(localStorage.getItem('icone')===chave)return}catch(e){}
   try{
     await document.fonts.load('italic 500 100px "Cormorant Garamond"');
     const out={};
     for(const sz of [180,512]){
       const cv=document.createElement('canvas');cv.width=cv.height=sz;const x=cv.getContext('2d'),k=sz/512;
-      x.fillStyle='#16274A';x.fillRect(0,0,sz,sz);
-      x.strokeStyle='#C9A45C';x.lineWidth=4*k;x.beginPath();x.roundRect(56*k,56*k,400*k,400*k,84*k);x.stroke();
+      x.fillStyle=bd?'#6B1A2B':'#16274A';x.fillRect(0,0,sz,sz);
+      x.strokeStyle=bd?'#C9967A':'#C9A45C';x.lineWidth=4*k;x.beginPath();x.roundRect(56*k,56*k,400*k,400*k,84*k);x.stroke();
       x.font=`italic 500 ${300*k}px "Cormorant Garamond"`;x.textAlign='center';
-      x.fillStyle='#D6B370';x.fillText('S',212*k,340*k);x.globalAlpha=.92;x.fillStyle='#F6F3EC';x.fillText('G',300*k,398*k);
+      x.fillStyle=bd?'#E0B9A2':'#D6B370';x.fillText(mo[0],212*k,340*k);x.globalAlpha=.92;x.fillStyle='#F6F3EC';x.fillText(mo.slice(1),300*k,398*k);
       out['png'+sz]=cv.toDataURL('image/png');
     }
     await api('/api/icon','POST',out);
-    try{localStorage.setItem('icone','v1')}catch(e){}
+    try{localStorage.setItem('icone',chave)}catch(e){}
   }catch(e){}
 }
 async function salvar(url,method,data){db=await api(url,method,data);fechar();render()}
@@ -223,7 +226,7 @@ function topo(titulo,sub){
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
   const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
-  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
+  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">${esc((db.mono||"SG")[0])}<b>${esc((db.mono||"SG").slice(1))}</b></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
@@ -319,6 +322,7 @@ function render(){
     app.innerHTML=`<div class="login"><img class="logo" src="/icon.svg" alt="Logo SG"><h2 style="margin:0">Crie sua senha</h2><div class="sm" style="text-align:center;max-width:260px">Esta é a sua primeira entrada. Escolha uma senha só sua para os próximos acessos.</div>
     <input id="s1" type="password" autocomplete="new-password" aria-label="Nova senha" placeholder="Nova senha"><input id="s2" type="password" autocomplete="new-password" aria-label="Repita a senha" placeholder="Repita a senha"><div class="err" id="err"></div><button class="btn" onclick="trocarSenha()">Salvar senha</button></div>`;
     $('#s1').focus();return}
+  document.body.classList.toggle('bordo',db.tema==='bordo');const wm=document.querySelector('.wm .sg');if(wm){const mo=db.mono||'SG';wm.innerHTML=esc(mo[0])+'<b>'+esc(mo.slice(1))+'</b>'}
   const c=calc(mes);
   const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,poupanca:telaPoupanca};
   app.innerHTML=`<div class="wrap">${db.demo?`<div class="sm" style="background:var(--tabOn);color:var(--ink);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>Modo demonstração</b> · só visualização</span><button class="btn ghost" style="height:34px;padding:0 12px" onclick="sair()">Sair</button></div>`:''}${telas[tab](c)}</div>`;
