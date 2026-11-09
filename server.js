@@ -26,18 +26,26 @@ const EMPTY = {
   pagos: {} // { "2026-11": ["idDaFixa", ...] }
 };
 
-function loadReal() {
-  try { return Object.assign(structuredClone(EMPTY), JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))); }
+function loadReal(file = DATA_FILE) {
+  try { return Object.assign(structuredClone(EMPTY), JSON.parse(fs.readFileSync(file, 'utf8'))); }
   catch { return structuredClone(EMPTY); }
 }
-function saveReal(db) {
-  const tmp = DATA_FILE + '.tmp';
+function saveReal(db, file = DATA_FILE) {
+  const tmp = file + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, DATA_FILE);
+  fs.renameSync(tmp, file);
   // cópia de segurança diária
-  const bk = path.join(DATA_DIR, 'backup-' + new Date().toISOString().slice(0, 10) + '.json');
-  if (!fs.existsSync(bk)) fs.copyFileSync(DATA_FILE, bk);
+  const bk = path.join(DATA_DIR, 'backup-' + path.basename(file, '.json') + '-' + new Date().toISOString().slice(0, 10) + '.json');
+  if (!fs.existsSync(bk)) fs.copyFileSync(file, bk);
 }
+
+// ---- outros usuários (cada um com as próprias finanças) ----
+const USERS_FILE = path.join(DATA_DIR, 'usuarios.json');
+const lerUsuarios = () => { try { return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch { return {}; } };
+const gravarUsuarios = u => { fs.writeFileSync(USERS_FILE + '.tmp', JSON.stringify(u, null, 2), { mode: 0o600 }); fs.renameSync(USERS_FILE + '.tmp', USERS_FILE); };
+const hashSenha = (senha, salt = crypto.randomBytes(16).toString('hex')) => ({ salt, hash: crypto.scryptSync(String(senha), salt, 64).toString('hex') });
+function confereSenha(u, senha) { const h = crypto.scryptSync(String(senha), u.salt, 64); const g = Buffer.from(u.hash, 'hex'); return h.length === g.length && crypto.timingSafeEqual(h, g); }
+const arquivoDe = id => path.join(DATA_DIR, 'financas-' + id + '.json');
 
 // ---- sessão ----
 function sign(v) { return crypto.createHmac('sha256', SECRET).update(v).digest('hex'); }
@@ -131,8 +139,9 @@ const server = http.createServer(async (req, res) => {
       const b = await body(req);
       const igual = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
       const pin = String(b.pin || '');
-      const quem = igual(pin, PIN) ? 'me' : (DEMO_PIN && DEMO_PIN !== PIN && igual(pin, DEMO_PIN)) ? 'demo-' + crypto.randomBytes(8).toString('hex') : null;
-      if (!quem) { fail(ip); return send(res, 401, { erro: 'PIN incorreto' }); }
+      let quem = igual(pin, PIN) ? 'me' : (DEMO_PIN && DEMO_PIN !== PIN && igual(pin, DEMO_PIN)) ? 'demo-' + crypto.randomBytes(8).toString('hex') : null;
+      if (!quem && pin) { const us = lerUsuarios(); for (const [id, u] of Object.entries(us)) if (confereSenha(u, pin)) { quem = 'u-' + id; break; } }
+      if (!quem) { fail(ip); return send(res, 401, { erro: 'Senha incorreta' }); }
       fails.delete(ip);
       const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
       return send(res, 200, { ok: true }, { 'Set-Cookie': `fin=${makeToken(quem)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${60 * 60 * 24 * (quem === 'me' ? 60 : 1)}${secure}` });
@@ -145,16 +154,32 @@ const server = http.createServer(async (req, res) => {
       if (!quem) return send(res, 401, { erro: 'login' });
       const demo = quem.startsWith('demo-');
       if (demo && !demos.has(quem)) { if (demos.size > 200) demos.clear(); demos.set(quem, dadosExemplo()); }
-      const load = demo ? () => demos.get(quem) : loadReal, save = demo ? d => demos.set(quem, d) : d => { sincronizarParcelas(d); saveReal(d); };
-      const comFlag = d => Object.assign(d, { gmailLigado: !demo && !!(GMAIL_USER && GMAIL_PASS), demo });
+      const outro = quem.startsWith('u-') ? quem.slice(2) : null;
+      const usuario = outro ? lerUsuarios()[outro] : null;
+      if (outro && !usuario) return send(res, 401, { erro: 'login' });
+      const arq = outro ? arquivoDe(outro) : DATA_FILE;
+      const load = demo ? () => demos.get(quem) : () => loadReal(arq), save = demo ? d => demos.set(quem, d) : d => { sincronizarParcelas(d); saveReal(d, arq); };
+      const sou = quem === 'me';
+      const comFlag = d => Object.assign(d, { gmailLigado: sou && !!(GMAIL_USER && GMAIL_PASS), demo, nome: demo ? '' : outro ? (usuario.nome || outro) : 'Sophia', trocarSenha: !!(usuario && usuario.trocar) });
+      if (p === '/api/senha' && req.method === 'POST') { // troca de senha do usuário (obrigatória no 1º acesso)
+        if (!outro) return send(res, 400, { erro: 'Sua senha é o PIN configurado na máquina' });
+        const b = await body(req); const nova = String(b.senha || '');
+        if (nova.length < 4) return send(res, 400, { erro: 'A senha precisa ter pelo menos 4 caracteres' });
+        if (nova === PIN || nova === DEMO_PIN) return send(res, 400, { erro: 'Escolha outra senha' });
+        const us = lerUsuarios(); if (Object.entries(us).some(([id, u]) => id !== outro && confereSenha(u, nova))) return send(res, 400, { erro: 'Escolha outra senha' });
+        if (confereSenha(us[outro], nova)) return send(res, 400, { erro: 'Use uma senha diferente da inicial' });
+        us[outro] = Object.assign(us[outro], hashSenha(nova), { trocar: false }); gravarUsuarios(us); usuario.trocar = false;
+        return send(res, 200, comFlag(load()));
+      }
+      if (usuario && usuario.trocar && !(p === '/api/state' && req.method === 'GET')) return send(res, 403, { erro: 'Troque sua senha primeiro' });
       const db = load();
       if (demo && req.method !== 'GET' && !p.startsWith('/api/gmail') && !p.startsWith('/api/icon')) return send(res, 403, { erro: 'Modo demonstração: só para visualização' });
       const parts = p.split('/').filter(Boolean); // ['api', coll, id?]
       const coll = parts[1], id = parts[2];
 
       if (coll === 'state' && req.method === 'GET') { if (sincronizarParcelas(db)) save(db); return send(res, 200, comFlag(db)); }
-      if (coll === 'gmail' && req.method === 'POST') { if (!demo) await rodarGmail(); return send(res, 200, comFlag(load())); }
-      if (coll === 'icon' && demo) return send(res, 200, { ok: true });
+      if (coll === 'gmail' && req.method === 'POST') { if (sou) await rodarGmail(); return send(res, 200, comFlag(load())); }
+      if (coll === 'icon' && !sou) return send(res, 200, { ok: true });
 
       if (coll === 'config' && req.method === 'PUT') {
         const b = await body(req);

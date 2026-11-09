@@ -103,7 +103,7 @@ nav svg{width:22px;height:22px}
 .chip.on{background:#16274A;color:#fff;border-color:#16274A}
 .login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;position:relative;z-index:1}
 .login .logo{width:120px;height:120px;border-radius:28px}
-.login input{height:56px;width:220px;text-align:center;font-size:24px;letter-spacing:8px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
+.login input{height:56px;width:240px;text-align:center;font-size:20px;letter-spacing:4px;border-radius:14px;border:1px solid var(--border);background:var(--card)}
 .err{color:var(--warn);font-size:14px;min-height:20px}
 .gasto{border-bottom:1px solid var(--line)}.gasto:last-child{border-bottom:0}.gasto .item{border-bottom:0;padding-bottom:6px}
 .catchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
@@ -120,7 +120,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v11</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v12</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -151,7 +151,7 @@ async function api(url,method='GET',data){
 async function carregar(){try{db=await api('/api/state')}catch(e){db=null}render();if(db)iconeBonito()}
 // desenha o ícone com a fonte da logo (o servidor não tem a fonte) e envia uma vez
 async function iconeBonito(){
-  if(db.demo)return;
+  if(db.demo||db.nome!=='Sophia')return;
   try{if(localStorage.getItem('icone')==='v1')return}catch(e){}
   try{
     await document.fonts.load('italic 500 100px "Cormorant Garamond"');
@@ -223,7 +223,7 @@ function topo(titulo,sub){
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
   const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
-  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.demo?"Olá!":"Oi, Sophia"}</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
+  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">S<b>G</b></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
@@ -312,9 +312,13 @@ function telaPoupanca(c){
 // ---------- render ----------
 function render(){
   const app=$('#app');
-  if(!db){app.innerHTML=`<div class="login"><img class="logo" src="/icon.svg" alt="Logo SG"><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" aria-label="PIN" placeholder="PIN"><div class="err" id="err"></div><button class="btn" onclick="entrar()">Entrar</button></div>`;
+  if(!db){app.innerHTML=`<div class="login"><img class="logo" src="/icon.svg" alt="Logo SG"><input id="pin" type="password" autocomplete="current-password" aria-label="Senha" placeholder="Senha"><div class="err" id="err"></div><button class="btn" onclick="entrar()">Entrar</button></div>`;
     document.querySelector('nav')?.remove();document.querySelector('.fab')?.remove();
     const p=$('#pin');p.focus();p.onkeydown=e=>{if(e.key==='Enter')entrar()};return}
+  if(db.trocarSenha){document.querySelector('nav')?.remove();document.querySelector('.fab')?.remove();
+    app.innerHTML=`<div class="login"><img class="logo" src="/icon.svg" alt="Logo SG"><h2 style="margin:0">Crie sua senha</h2><div class="sm" style="text-align:center;max-width:260px">Esta é a sua primeira entrada. Escolha uma senha só sua para os próximos acessos.</div>
+    <input id="s1" type="password" autocomplete="new-password" aria-label="Nova senha" placeholder="Nova senha"><input id="s2" type="password" autocomplete="new-password" aria-label="Repita a senha" placeholder="Repita a senha"><div class="err" id="err"></div><button class="btn" onclick="trocarSenha()">Salvar senha</button></div>`;
+    $('#s1').focus();return}
   const c=calc(mes);
   const telas={inicio:telaInicio,fixas:telaFixas,gastos:telaGastos,graficos:telaGraficos,poupanca:telaPoupanca};
   app.innerHTML=`<div class="wrap">${db.demo?`<div class="sm" style="background:var(--tabOn);color:var(--ink);border-radius:12px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>Modo demonstração</b> · só visualização</span><button class="btn ghost" style="height:34px;padding:0 12px" onclick="sair()">Sair</button></div>`:''}${telas[tab](c)}</div>`;
@@ -329,6 +333,7 @@ async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
 function mudaMes(n){mes=addMes(mes,n);render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
+async function trocarSenha(){const a=$('#s1').value,b=$('#s2').value;if(a.length<4)return $('#err').textContent='Use pelo menos 4 caracteres';if(a!==b)return $('#err').textContent='As senhas não são iguais';try{db=await api('/api/senha','POST',{senha:a});render()}catch(e){$('#err').textContent=e.message}}
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
