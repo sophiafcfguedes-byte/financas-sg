@@ -124,13 +124,13 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v20</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v21</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
 const ESSENCIAIS=['Mercado','Transporte','Saúde','Casa','Contas','Educação'];
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-let db=null, tab='inicio', mes=new Date().toISOString().slice(0,7);
+let db=null, tab='inicio', mes=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
 let oculto=false; try{oculto=localStorage.getItem('oculto')==='1'}catch(e){}
 
 const $=s=>document.querySelector(s);
@@ -227,7 +227,7 @@ const I={
 // ---------- telas ----------
 function topo(titulo,sub){
   return `<div class="top"><div><small>${sub||''}</small><h1>${titulo}</h1></div>
-  <div class="month"><button class="icon-btn" aria-label="Mês anterior" onclick="mudaMes(-1)">${I.prev}</button><button class="icon-btn" aria-label="Próximo mês" onclick="mudaMes(1)">${I.next}</button></div></div>`;
+  <div class="month">${mes>MES_MIN?`<button class="icon-btn" aria-label="Mês anterior" onclick="mudaMes(-1)">${I.prev}</button>`:''}${mes<mesAtual()?`<button class="icon-btn" aria-label="Próximo mês" onclick="mudaMes(1)">${I.next}</button>`:''}</div></div>`;
 }
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
@@ -349,7 +349,8 @@ function render(){
 }
 async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
-function mudaMes(n){mes=addMes(mes,n);render()}
+const MES_MIN='2026-11';const mesAtual=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+function mudaMes(n){const m=addMes(mes,n);if(m<MES_MIN||m>mesAtual())return;mes=m;render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function trocarSenha(){const a=$('#s1').value,b=$('#s2').value;if(a.length<4)return $('#err').textContent='Use pelo menos 4 caracteres';if(a!==b)return $('#err').textContent='As senhas não são iguais';try{db=await api('/api/senha','POST',{senha:a});render()}catch(e){$('#err').textContent=e.message}}
 async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value});carregar()}catch(e){$('#err').textContent=e.message}}
