@@ -124,7 +124,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v22</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v23</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -204,7 +204,7 @@ function calc(m){
   const meta=renda*.25;
   const ess=tFix+tBol+gastos.filter(g=>ESSENCIAIS.includes(g.categoria)).reduce((s,g)=>s+g.valor,0)+parcelas.filter(p=>ESSENCIAIS.includes(p.categoria)).reduce((s,p)=>s+p.valorParcela,0);
   const livre=gastoTotal-ess;
-  const porCat={};if(tFix)porCat['Fixas']=tFix;gastos.forEach(g=>{const k=g.categoria||'Sem categoria';porCat[k]=(porCat[k]||0)+g.valor});parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
+  const porCat={};fixas.forEach(f=>{const k=CATS.includes(f.categoria)?f.categoria:'Fixas';porCat[k]=(porCat[k]||0)+f.valor});gastos.forEach(g=>{const k=g.categoria||'Sem categoria';porCat[k]=(porCat[k]||0)+g.valor});parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
   const acumulado=saldoAte(m);
   return{tri,renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
     sobra:renda-gastoTotal-meta};
@@ -253,7 +253,7 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="cc ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ Boleto':'Boleto'}</button></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>`;
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="catchips" role="group" aria-label="Categoria de ${esc(f.nome)}">${CATS.map(k=>`<button class="cc ${k===f.categoria?'on':''}" aria-pressed="${k===f.categoria}" onclick="mudaCatFixa('${f.id}','${k}')">${k}</button>`).join('')}</div><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>`;
 }
 function telaGastos(c){
   const tCartao=c.tGas+c.tPar, tBoletos=c.tBol+c.fixas.filter(f=>f.boleto).reduce((a,f)=>a+f.valor,0);
@@ -357,6 +357,7 @@ async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value})
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
 async function dividirParcela(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const p=db.parceladas.find(x=>x.id===id);if(!p)return;const novo=p.dividido?{valorParcela:p.valorParcela*2,dividido:false}:{valorParcela:Math.round(p.valorParcela/2*100)/100,dividido:true};db=await api('/api/parceladas/'+id,'PUT',novo);render();scrollTo(0,y)}
+async function mudaCatFixa(id,cat){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const f=db.fixas.find(x=>x.id===id);if(!f)return;const nova=f.categoria===cat?'':cat;f.categoria=nova;render();scrollTo(0,y);db=await api('/api/fixas/'+id,'PUT',{categoria:nova});render();scrollTo(0,y)}
 async function marcaBoleto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const f=db.fixas.find(x=>x.id===id);if(!f)return;f.boleto=!f.boleto;render();scrollTo(0,y);db=await api('/api/fixas/'+id,'PUT',{boleto:f.boleto});render();scrollTo(0,y)}
 async function dividir(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const novo=g.dividido?{valor:g.valor*2,dividido:false}:{valor:Math.round(g.valor/2*100)/100,dividido:true};db=await api('/api/gastos/'+id,'PUT',novo);render();scrollTo(0,y)}
 async function apagarGasto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const g=db.gastos.find(x=>x.id===id);if(!g||!confirm('Excluir "'+(g.desc||'gasto')+'"?'))return;const y=scrollY;db=await api('/api/gastos/'+id,'DELETE');render();scrollTo(0,y)}
@@ -389,8 +390,8 @@ function formRenda(){const es=entradasDe(mes);
   <div class="list">${es.length?es.map(e=>`<div class="item"><div class="t"><b>${esc(e.desc||'Entrada')}</b><small>${dataBR(e.data)}</small></div><span class="v">${brl(e.valor)}</span><button class="icon-btn" aria-label="Excluir" onclick="apagar('entradas','${e.id}')">×</button></div>`).join(''):'<div class="empty">Nada registrado ainda neste mês.</div>'}</div>
   <button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 function formFixa(id){const f=db.fixas.find(x=>x.id===id)||{};const pago=id&&(db.pagos[mes]||[]).includes(id);
-  abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}${valorCampo('val','Valor',f.valor)}${sel('cat','Categoria',['Casa','Contas','Assinaturas','Educação','Saúde','Transporte','Outros'],f.categoria||'Casa')}
-  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),categoria:v('cat')})`,id,'fixas')}`)}
+  abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}${valorCampo('val','Valor',f.valor)}${sel('cat','Categoria',['Sem categoria',...CATS],CATS.includes(f.categoria)?f.categoria:'Sem categoria')}
+  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),categoria:v('cat')==='Sem categoria'?'':v('cat')})`,id,'fixas')}`)}
 function formGasto(id){const g=db.gastos.find(x=>x.id===id)||{};let cat=g.categoria||'Compras';
   abrir(`<h2>${id?'Editar gasto':'Novo gasto'}</h2>${valorCampo('val','Valor',g.valor)}
   <div class="field"><label>Categoria</label><div class="chips" id="chips">${CATS.map(k=>`<button class="chip ${k===cat?'on':''}" data-c="${k}">${k}</button>`).join('')}</div></div>
@@ -421,6 +422,16 @@ function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};
   <div class="row2">${campo('mesr','Mês','month',r.mes||mes)}${campo('nota','Onde (opcional)',undefined,r.nota,'placeholder="Ex.: CDB"')}</div>
   ${rodape(`salvar('/api/reserva${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),nota:v('nota'),mes:v('mesr')})`,id,'reserva')}`)}
 
+// arrastar para baixo no topo da tela = atualizar
+(function(){let y0=null,dy=0;const ind=document.createElement('div');ind.setAttribute('aria-hidden','true');
+  ind.style.cssText='position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translate(-50%,-60px);width:36px;height:36px;border-radius:18px;background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;z-index:40;transition:transform .2s;color:var(--navy)';
+  ind.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>';document.body.appendChild(ind);
+  addEventListener('touchstart',e=>{y0=(scrollY<=0&&!document.querySelector('.sheet-bg'))?e.touches[0].clientY:null;dy=0},{passive:true});
+  addEventListener('touchmove',e=>{if(y0===null)return;dy=Math.max(0,e.touches[0].clientY-y0);ind.style.transition='none';ind.style.transform=`translate(-50%,${Math.min(dy,90)-60}px) rotate(${dy*3}deg)`},{passive:true});
+  addEventListener('touchend',async()=>{if(y0===null)return;y0=null;ind.style.transition='transform .2s';
+    if(dy>70&&db){ind.style.transform='translate(-50%,20px)';ind.firstChild.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:700,iterations:Infinity});await carregar();}
+    ind.firstChild.getAnimations().forEach(a=>a.cancel());ind.style.transform='translate(-50%,-60px)'});
+})();
 carregar();
 </script>
 </body>
