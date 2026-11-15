@@ -130,7 +130,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v34</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v35</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -187,9 +187,10 @@ async function salvar(url,method,data){db=await api(url,method,data);fechar();re
 function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(m)).sort((a,b)=>b.data.localeCompare(a.data))}
 function rendaDe(m){return entradasDe(m).reduce((s,e)=>s+e.valor,0)+((db.rendas||{})[m]||0)}
 // poupança: cada registro é o SALDO total da poupança naquele momento
-function snaps(){return db.reserva.map((r,i)=>({...r,_i:i})).sort((a,b)=>a.mes.localeCompare(b.mes)||(a.em||'').localeCompare(b.em||'')||a._i-b._i)}
-function saldoAte(m){const ss=snaps().filter(r=>r.mes<=m);return ss.length?ss[ss.length-1].valor:0}
-function saldoAntes(m){const ss=snaps().filter(r=>r.mes<m);return ss.length?ss[ss.length-1].valor:0}
+// poupança: registro "saldo" = total da poupança naquele momento; registro "soma" = valor guardado que se soma ao que já tinha
+function snaps(){const ss=db.reserva.map((r,i)=>({...r,_i:i})).sort((a,b)=>a.mes.localeCompare(b.mes)||(a.em||'').localeCompare(b.em||'')||a._i-b._i);let bal=0;ss.forEach(r=>{const ant=bal;bal=r.tipo==='soma'?bal+r.valor:r.valor;r.bal=bal;r.dif=bal-ant});return ss}
+function saldoAte(m){const ss=snaps().filter(r=>r.mes<=m);return ss.length?ss[ss.length-1].bal:0}
+function saldoAntes(m){const ss=snaps().filter(r=>r.mes<m);return ss.length?ss[ss.length-1].bal:0}
 function guardadoNo(m){return snaps().some(r=>r.mes===m)?saldoAte(m)-saldoAntes(m):0}
 function calc(m){
   const c=db.config, renda=rendaDe(m);
@@ -336,7 +337,7 @@ function telaPoupanca(c){
     <div class="bar"><i style="width:${pg}%"></i></div>
     <span class="sm">${c.guardado>=c.meta&&c.meta?'Meta do mês cumprida':'Faltam '+brl(Math.max(0,c.meta-c.guardado))}</span>
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:12px;cursor:pointer"><span style="color:var(--heroMuted)">Saldo atual</span><b style="color:#fff">${hid(c.acumulado)}</b></div>
-    <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Atualizar saldo da poupança</button></div>
+    <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Registrar na poupança</button></div>
   ${(()=>{const ss0=snaps();const ini=ss0.length>1?addMes(ss0[0].mes,1):'2026-10';const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
     const v=meses.map(m=>({m,no:Math.max(0,guardadoNo(m)),neg:guardadoNo(m)<0,ac:saldoAte(m)}));
     const mx=Math.max(1,...v.map(x=>x.no));const w=v.length>4?22:48;
@@ -346,7 +347,7 @@ function telaPoupanca(c){
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${v.map(x=>`<span style="${x.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+x.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado em ${MESES[+mes.slice(5)-1]}</span><b style="color:var(--ink)">${brl(c.guardado)}</b></div>
     </div>`})()}
-  ${db.reserva.length?`<div class="sec"><div class="sec-h"><span>Saldos registrados</span></div><div class="list">${(()=>{const ss=snaps();return ss.map((r,i)=>({r,d:i?r.valor-ss[i-1].valor:null})).reverse().map(({r,d})=>`<button class="item" onclick="formReserva('${r.id}')"><div class="t"><b>${mesNome(r.mes)}</b><small>${d===null?'Saldo inicial':(d>=0?'+ ':'− ')+brl(Math.abs(d))+' em relação ao anterior'}${r.nota?' · '+esc(r.nota):''}</small></div><span class="v">${brl(r.valor)}</span></button>`).join('')})()}</div></div>`:''}`;
+  ${db.reserva.length?`<div class="sec"><div class="sec-h"><span>Saldos registrados</span></div><div class="list">${(()=>{const ss=snaps();return ss.map((r,i)=>({r,d:i?r.dif:null})).reverse().map(({r,d})=>`<button class="item" onclick="formReserva('${r.id}')"><div class="t"><b>${mesNome(r.mes)}</b><small>${r.tipo==='soma'?'Guardei '+brl(r.valor):(d===null?'Saldo inicial':(d>=0?'+ ':'− ')+brl(Math.abs(d))+' em relação ao anterior')}${r.nota?' · '+esc(r.nota):''}</small></div><span class="v">${brl(r.bal)}</span></button>`).join('')})()}</div></div>`:''}`;
 }
 
 // ---------- render ----------
@@ -452,11 +453,14 @@ function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Qua
 function formSaldo(){abrir(`<h2>Total já guardado</h2>${valorCampo('val','Quanto você já tinha guardado antes de usar o app',db.saldoInicial||'')}
   <div class="sm">O total acumulado é esse valor + tudo que você registrar em "Registrar valor guardado".</div>
   ${rodape("salvar('/api/saldo','PUT',{valor:v('val')})")}`)}
-function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};
-  abrir(`<h2>${id?'Editar saldo':'Saldo da poupança'}</h2>${valorCampo('val','Quanto tem na poupança agora (total)',r.valor)}
-  <div class="sm">O app calcula sozinho quanto você guardou: este valor menos o último saldo registrado.</div>
+function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};const tp=r.tipo||'soma';
+  abrir(`<h2>${id?'Editar registro':'Poupança'}</h2>
+  <div class="field"><label>O que você vai informar?</label><div class="chips"><button class="chip ${tp==='soma'?'on':''}" data-t="soma" onclick="tipoRes(this)">Valor que guardei (soma)</button><button class="chip ${tp==='saldo'?'on':''}" data-t="saldo" onclick="tipoRes(this)">Saldo total</button></div></div>
+  ${valorCampo('val','Valor',r.valor)}
+  <div class="sm" id="dicaRes">${tp==='soma'?'Esse valor é somado ao que você já tinha guardado.':'O app calcula quanto você guardou: este saldo menos o anterior.'}</div>
   <div class="row2">${campo('mesr','Mês','month',r.mes||mes)}${campo('nota','Onde (opcional)',undefined,r.nota,'placeholder="Ex.: CDB"')}</div>
-  ${rodape(`salvar('/api/reserva${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),nota:v('nota'),mes:v('mesr')})`,id,'reserva')}`)}
+  ${rodape(`salvar('/api/reserva${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),nota:v('nota'),mes:v('mesr'),tipo:document.querySelector('.chip.on[data-t]').dataset.t})`,id,'reserva')}`)}
+function tipoRes(b){document.querySelectorAll('.chip[data-t]').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('#dicaRes').textContent=b.dataset.t==='soma'?'Esse valor é somado ao que você já tinha guardado.':'O app calcula quanto você guardou: este saldo menos o anterior.'}
 
 // arrastar para baixo no topo da tela = atualizar
 (function(){let y0=null,dy=0;const ind=document.createElement('div');ind.setAttribute('aria-hidden','true');
