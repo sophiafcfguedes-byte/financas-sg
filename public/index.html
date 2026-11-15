@@ -128,13 +128,13 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v29</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v30</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
 const ESSENCIAIS=['Mercado','Transporte','Saúde','Casa','Contas','Educação'];
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-let db=null, tab='inicio', mes=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
+let db=null, tab='inicio', mes=(()=>{const d=new Date(),ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();let y=d.getFullYear(),m=d.getMonth()+1;if(d.getDate()<ult){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})();
 let oculto=false; try{oculto=localStorage.getItem('oculto')==='1'}catch(e){}
 
 const $=s=>document.querySelector(s);
@@ -366,7 +366,8 @@ function render(){
 }
 async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
-const MES_MIN='2026-10';const mesAtual=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const MES_MIN='2026-10';// o mês só libera no último dia dele (ex.: novembro aparece em 30/11)
+const mesAtual=()=>{const d=new Date(),ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');return d.getDate()>=ult?m:addMes(m,-1)};
 function mudaMes(n){const m=addMes(mes,n);if(m<MES_MIN||m>mesAtual())return;mes=m;render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function trocarSenha(){const a=$('#s1').value,b=$('#s2').value;if(a.length<4)return $('#err').textContent='Use pelo menos 4 caracteres';if(a!==b)return $('#err').textContent='As senhas não são iguais';try{db=await api('/api/senha','POST',{senha:a});render()}catch(e){$('#err').textContent=e.message}}
