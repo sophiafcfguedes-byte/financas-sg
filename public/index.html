@@ -123,7 +123,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v18</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v19</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -176,6 +176,11 @@ async function salvar(url,method,data){db=await api(url,method,data);fechar();re
 // ---------- cálculos do mês ----------
 function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(m)).sort((a,b)=>b.data.localeCompare(a.data))}
 function rendaDe(m){return entradasDe(m).reduce((s,e)=>s+e.valor,0)+((db.rendas||{})[m]||0)}
+// poupança: cada registro é o SALDO total da poupança naquele momento
+function snaps(){return db.reserva.map((r,i)=>({...r,_i:i})).sort((a,b)=>a.mes.localeCompare(b.mes)||(a.em||'').localeCompare(b.em||'')||a._i-b._i)}
+function saldoAte(m){const ss=snaps().filter(r=>r.mes<=m);return ss.length?ss[ss.length-1].valor:0}
+function saldoAntes(m){const ss=snaps().filter(r=>r.mes<m);return ss.length?ss[ss.length-1].valor:0}
+function guardadoNo(m){return snaps().some(r=>r.mes===m)?saldoAte(m)-saldoAntes(m):0}
 function calc(m){
   const c=db.config, renda=rendaDe(m);
   const pagos=new Set(db.pagos[m]||[]);
@@ -189,7 +194,7 @@ function calc(m){
   // boleto de fatura do cartão: as compras já estão em Gastos, então não soma de novo
   const chFat=new Set(db.gastos.filter(g=>g.fonte==='fatura'&&g.chave).map(g=>g.chave.split('|')[0]));
   const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).map(b=>({...b,ehFatura:b.ehFatura||chFat.has(b.msgId)||chFat.has(b.codigo)||/fatura|cart[aã]o/i.test(b.desc+' '+(b.assunto||''))&&db.gastos.some(g=>g.fonte==='fatura')})).sort((a,b)=>a.venc.localeCompare(b.venc));
-  const guardado=db.reserva.filter(r=>r.mes===m).reduce((s,r)=>s+r.valor,0);
+  const guardado=guardadoNo(m);
   const tFix=fixas.reduce((s,f)=>s+f.valor,0), tPar=parcelas.filter(p=>!p.naFatura).reduce((s,p)=>s+p.valorParcela,0);
   const tGas=gastos.reduce((s,g)=>s+g.valor,0), tBol=boletos.filter(b=>!b.ehFatura).reduce((s,b)=>s+b.valor,0);
   const tri=0;
@@ -199,7 +204,7 @@ function calc(m){
   const ess=tFix+tBol+gastos.filter(g=>ESSENCIAIS.includes(g.categoria)).reduce((s,g)=>s+g.valor,0)+parcelas.filter(p=>ESSENCIAIS.includes(p.categoria)).reduce((s,p)=>s+p.valorParcela,0);
   const livre=gastoTotal-ess;
   const porCat={};if(tFix)porCat['Fixas']=tFix;gastos.forEach(g=>{const k=g.categoria||'Sem categoria';porCat[k]=(porCat[k]||0)+g.valor});parcelas.forEach(p=>porCat[p.categoria]=(porCat[p.categoria]||0)+p.valorParcela);
-  const acumulado=(db.saldoInicial||0)+db.reserva.filter(r=>r.mes<=m).reduce((s,r)=>s+r.valor,0);
+  const acumulado=saldoAte(m);
   return{tri,renda,fixas,parcelas,gastos,boletos,guardado,tFix,tPar,tGas,tBol,gastoTotal,faltaPagar,meta,ess,livre,porCat,acumulado,
     sobra:renda-gastoTotal-meta};
 }
@@ -304,18 +309,18 @@ function telaPoupanca(c){
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado este mês</span><b style="color:#D6B370">${brl(c.guardado)} de ${brl(c.meta)}</b></div>
     <div class="bar"><i style="width:${pg}%"></i></div>
     <span class="sm">${c.guardado>=c.meta&&c.meta?'Meta do mês cumprida':'Faltam '+brl(Math.max(0,c.meta-c.guardado))}</span>
-    <button onclick="formSaldo()" style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:12px;cursor:pointer"><span style="color:var(--heroMuted);display:flex;align-items:center;gap:4px">Total acumulado <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b style="color:#fff">${hid(c.acumulado)}</b></button>
-    <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Registrar valor guardado</button></div>
-  ${(()=>{const ini=db.reserva.reduce((a,r)=>r.mes<a?r.mes:a,'2026-11');const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
-    const v=meses.map(m=>{const no=db.reserva.filter(r=>r.mes===m).reduce((a,r)=>a+r.valor,0);const ac=(db.saldoInicial||0)+db.reserva.filter(r=>r.mes<=m).reduce((a,r)=>a+r.valor,0);return{m,no,ac}});
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:12px;cursor:pointer"><span style="color:var(--heroMuted)">Saldo atual</span><b style="color:#fff">${hid(c.acumulado)}</b></div>
+    <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Atualizar saldo da poupança</button></div>
+  ${(()=>{const ss0=snaps();const ini=ss0.length>1?addMes(ss0[0].mes,1):'2026-11';const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
+    const v=meses.map(m=>({m,no:Math.max(0,guardadoNo(m)),neg:guardadoNo(m)<0,ac:saldoAte(m)}));
     const mx=Math.max(1,...v.map(x=>x.no));const w=v.length>4?22:48;
     return`<div class="card"><div class="sec-h"><span>Poupança acumulada</span><b>${hid(c.acumulado)}</b></div>
-    <div class="sm">Quanto você guardou em cada mês · total acumulado no topo</div>
+    <div class="sm">Quanto a poupança cresceu em cada mês · saldo atual no topo</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${v.map(x=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="${brl(x.no)}" style="width:${w}px;border-radius:4px 4px 0 0;background:#1D6B4A;height:${x.no/mx*100}%"></i></div>`).join('')}</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${v.map(x=>`<span style="${x.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+x.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado em ${MESES[+mes.slice(5)-1]}</span><b style="color:var(--ink)">${brl(c.guardado)}</b></div>
     </div>`})()}
-  ${db.reserva.length?`<div class="sec"><div class="sec-h"><span>Registros</span></div><div class="list">${[...db.reserva].sort((a,b)=>b.mes.localeCompare(a.mes)).map(r=>`<button class="item" onclick="formReserva('${r.id}')"><div class="t"><b>${mesNome(r.mes)}</b><small>${esc(r.nota||'Reserva')} · toque para editar</small></div><span class="v">${brl(r.valor)}</span></button>`).join('')}</div></div>`:''}`;
+  ${db.reserva.length?`<div class="sec"><div class="sec-h"><span>Saldos registrados</span></div><div class="list">${(()=>{const ss=snaps();return ss.map((r,i)=>({r,d:i?r.valor-ss[i-1].valor:null})).reverse().map(({r,d})=>`<button class="item" onclick="formReserva('${r.id}')"><div class="t"><b>${mesNome(r.mes)}</b><small>${d===null?'Saldo inicial':(d>=0?'+ ':'− ')+brl(Math.abs(d))+' em relação ao anterior'}${r.nota?' · '+esc(r.nota):''}</small></div><span class="v">${brl(r.valor)}</span></button>`).join('')})()}</div></div>`:''}`;
 }
 
 // ---------- render ----------
@@ -408,7 +413,8 @@ function formSaldo(){abrir(`<h2>Total já guardado</h2>${valorCampo('val','Quant
   <div class="sm">O total acumulado é esse valor + tudo que você registrar em "Registrar valor guardado".</div>
   ${rodape("salvar('/api/saldo','PUT',{valor:v('val')})")}`)}
 function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};
-  abrir(`<h2>${id?'Editar valor guardado':'Guardei na reserva'}</h2>${valorCampo('val','Valor guardado',r.valor)}
+  abrir(`<h2>${id?'Editar saldo':'Saldo da poupança'}</h2>${valorCampo('val','Quanto tem na poupança agora (total)',r.valor)}
+  <div class="sm">O app calcula sozinho quanto você guardou: este valor menos o último saldo registrado.</div>
   <div class="row2">${campo('mesr','Mês','month',r.mes||mes)}${campo('nota','Onde (opcional)',undefined,r.nota,'placeholder="Ex.: CDB"')}</div>
   ${rodape(`salvar('/api/reserva${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),nota:v('nota'),mes:v('mesr')})`,id,'reserva')}`)}
 

@@ -109,7 +109,7 @@ const CLEAN = {
   gastos: b => ({ desc: str(b.desc), valor: num(b.valor), data: ymd(b.data), categoria: str(b.categoria || '', 40), forma: str(b.forma || 'Pix', 20), fonte: str(b.fonte, 10), chave: str(b.chave, 300), catManual: !!b.catManual, dividido: !!b.dividido, mes: /^\d{4}-\d{2}$/.test(b.mes) ? b.mes : undefined }),
   parceladas: b => ({ desc: str(b.desc), valorParcela: num(b.valorParcela), total: Math.max(1, parseInt(b.total) || 1), primeiroMes: ym(b.primeiroMes), categoria: str(b.categoria || 'Compras', 40), dividido: !!b.dividido }),
   boletos: b => ({ desc: str(b.desc), valor: num(b.valor), venc: ymd(b.venc), codigo: str(b.codigo, 80), pago: !!b.pago, fonte: str(b.fonte, 10), msgId: str(b.msgId, 200), aviso: '', ehFatura: !!b.ehFatura }),
-  reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80) })
+  reserva: b => ({ mes: ym(b.mes), valor: num(b.valor), nota: str(b.nota, 80), em: typeof b.em === 'string' ? b.em.slice(0, 30) : new Date().toISOString() })
 };
 
 const load = loadReal, save = saveReal;
