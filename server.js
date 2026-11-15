@@ -199,6 +199,9 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true });
       }
 
+      if (coll === 'saldo' && req.method === 'PUT') { // quanto já tinha guardado antes de começar a usar o app
+        const b = await body(req); db.saldoInicial = num(b.valor); save(db); return send(res, 200, comFlag(db));
+      }
       if (coll === 'tricount' && req.method === 'PUT') { // parte da Victoria no cartão, abate dos gastos do mês
         const b = await body(req); db.tricount = db.tricount || {}; db.tricount[ym(b.mes)] = num(b.valor);
         save(db); return send(res, 200, comFlag(db));
