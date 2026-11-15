@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Finanças SG</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -31,7 +31,7 @@ body.bordo{--navy:#7A1F33;--navy2:#5C1525;--hero:#6B1A2B;--heroMuted:#E8C9CF;--t
 body.bordo .btn:not(.ghost):not(.danger),body.bordo .mono,body.bordo .chip.on{background:#6B1A2B;border-color:#6B1A2B}
 @media (prefers-color-scheme: dark){body.bordo{--bg:#140A0D;--card:#24131A;--line:#33202A;--border:#45303A;--nav:#1B0E13;--navy:#E0B9A2;--hero:#5A1726;--c1:#D98A9C;--wmGcolor:#EEF1F6;--tabOn:#3A1820}body.bordo{background:#140A0D}body.bordo .btn:not(.ghost):not(.danger){background:#C9967A;color:#1A0B10}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
+html,body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif}
 body{min-height:100vh;padding-bottom:calc(170px + env(safe-area-inset-bottom))}
 button,input,select{font:inherit;color:inherit}
 .wrap{max-width:480px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 20px 24px;position:relative;z-index:1;display:flex;flex-direction:column;gap:18px}
@@ -127,7 +127,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v25</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v26</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -256,7 +256,7 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="cc ${f.categoria==='Caio'?'on':''}" aria-pressed="${f.categoria==='Caio'}" onclick="mudaCatFixa('${f.id}','Caio')">${f.categoria==='Caio'?'✓ Caio':'Caio'}</button><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
   ${c.fixas.length?'<div class="sm" style="text-align:center">Arraste uma despesa para a esquerda para excluir</div>':''}</div>`;
 }
 function telaGastos(c){
@@ -289,14 +289,23 @@ function telaGraficos(c){
   <div class="card"><div class="sec-h"><span>Para onde foi o dinheiro</span><b>${brl(cats.length?tot:0)}</b></div>
   ${cats.length?`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <svg viewBox="0 0 180 180" width="150" height="150" role="img" aria-label="Gráfico de gastos por categoria">${fatias}<text x="90" y="86" text-anchor="middle" font-size="11" fill="currentColor" opacity=".6">total</text><text x="90" y="104" text-anchor="middle" font-size="15" font-weight="800" fill="currentColor">${Math.round(tot).toLocaleString('pt-BR')}</text></svg>
-    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px">${cats.map(([k,v])=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${CORES[k]||'#9AA3B5'};flex:none"></i><span style="flex:1">${esc(k)}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div>
-  ${cats.map(([k,v])=>`<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;justify-content:space-between;font-size:14px"><span style="font-weight:600">${esc(k)}</span><b>${brl(v)}</b></div><div class="bar"><i style="width:${v/cats[0][1]*100}%;background:${CORES[k]||'#9AA3B5'}"></i></div></div>`).join('')}`:'<div class="sm">Nenhum gasto neste mês.</div>'}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px">${cats.map(([k,v])=>`<div onclick="detalheCat('${esc(k)}')" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px"><i style="width:10px;height:10px;border-radius:3px;background:${CORES[k]||'#9AA3B5'};flex:none"></i><span style="flex:1">${esc(k)}</span><b>${Math.round(v/tot*100)}%</b></div>`).join('')}</div></div>
+  ${cats.map(([k,v])=>`<button onclick="detalheCat('${esc(k)}')" style="display:flex;flex-direction:column;gap:4px;border:0;background:none;padding:4px 0;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%"><div style="display:flex;justify-content:space-between;font-size:14px;width:100%"><span style="font-weight:600">${esc(k)} <span style="color:var(--muted);font-weight:500">›</span></span><b>${brl(v)}</b></div><div class="bar" style="width:100%"><i style="width:${v/cats[0][1]*100}%;background:${CORES[k]||'#9AA3B5'}"></i></div></button>`).join('')}<div class="sm" style="text-align:center">Toque numa categoria para ver o detalhe</div>`:'<div class="sm">Nenhum gasto neste mês.</div>'}</div>
   <div class="card"><div class="sec-h"><span>${meses.length>1?'Mês a mês':'Este mês'}</span></div>
     <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:#C9A45C"></i>Recebido</span><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--c1)"></i>Gasto</span></div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(meses.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${vals.map(v=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Recebido ${brl(v.r)}" style="width:${meses.length>3?12:28}px;border-radius:3px 3px 0 0;background:#C9A45C;height:${v.r/mx*100}%"></i><i title="Gasto ${brl(v.g)}" style="width:${meses.length>3?12:28}px;border-radius:3px 3px 0 0;background:var(--c1);height:${v.g/mx*100}%"></i></div>`).join('')}</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(meses.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${vals.map(v=>`<span style="${v.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+v.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
   </div>`;
 }
+function detalheCat(k){const c=calc(mes);const itens=[];
+  c.fixas.forEach(f=>{const kk=CATS.includes(f.categoria)?f.categoria:'Fixas';if(kk===k)itens.push({n:f.nome,s:'Despesa fixa',v:f.valor})});
+  c.gastos.forEach(g=>{if((g.categoria||'Sem categoria')===k)itens.push({n:g.desc||g.categoria,s:(g.forma||'')+' · '+dataBR(g.data)+(g.fonte==='fatura'?' · fatura':''),v:g.valor})});
+  c.parcelas.filter(p=>!p.naFatura).forEach(p=>{if(p.categoria===k)itens.push({n:p.desc,s:'Parcela '+p.n+' de '+p.total,v:p.valorParcela})});
+  itens.sort((a,b)=>b.v-a.v);const tot=itens.reduce((a,x)=>a+x.v,0);
+  const ab=db.demo;if(ab)db.demo=false;
+  abrir(`<h2>${esc(k)}</h2><div class="sm">${mesNome(mes)} · ${itens.length} ${itens.length===1?'item':'itens'}</div><div style="font-size:26px;font-weight:800">${brl(tot)}</div>
+  <div class="list">${itens.map(x=>`<div class="item"><div class="t"><b>${esc(x.n)}</b><small>${esc(x.s)}</small></div><span class="v">${brl(x.v)}</span></div>`).join('')||'<div class="empty">Nada nesta categoria.</div>'}</div>
+  <button class="btn ghost" onclick="fechar()">Fechar</button>`);if(ab)db.demo=true}
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
   return topo('Boletos',mesNome(mes))+`
@@ -445,6 +454,7 @@ function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};
     if(dy>70&&db){ind.style.transform='translate(-50%,20px)';ind.firstChild.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:700,iterations:Infinity});await carregar();}
     ind.firstChild.getAnimations().forEach(a=>a.cancel());ind.style.transform='translate(-50%,-60px)'});
 })();
+document.addEventListener('gesturestart',e=>e.preventDefault());document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
 carregar();
 </script>
 </body>
