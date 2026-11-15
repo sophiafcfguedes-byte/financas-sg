@@ -113,6 +113,9 @@ nav svg{width:22px;height:22px}
 .cc{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--border);background:transparent;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
 .cc.on{background:#1D6B4A;border-color:#1D6B4A;color:#fff}
 .catchips{padding-bottom:8px}.parc{border-bottom:1px solid var(--line)}.parc .item{border-bottom:0}
+.swipe{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}.swipe:last-child{border-bottom:0}
+.swipe-del{position:absolute;right:0;top:0;bottom:0;width:84px;border:0;background:#C0392B;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.swipe-fg{position:relative;background:var(--card);transition:transform .2s;border-bottom:0!important}
 .gacoes{display:flex;gap:8px;padding:0 14px 12px}
 .ga{height:32px;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer}
 .ga.on{background:var(--tabOn);border-color:var(--tabOn)}.ga.del{color:var(--warn);margin-left:auto}
@@ -124,7 +127,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v24</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v25</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -253,7 +256,8 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="catchips" role="group" aria-label="Categoria de ${esc(f.nome)}">${CATS.map(k=>`<button class="cc ${k===f.categoria?'on':''}" aria-pressed="${k===f.categoria}" onclick="mudaCatFixa('${f.id}','${k}')">${k}</button>`).join('')}</div><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div></div>`;
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="cc ${f.categoria==='Caio'?'on':''}" aria-pressed="${f.categoria==='Caio'}" onclick="mudaCatFixa('${f.id}','Caio')">${f.categoria==='Caio'?'✓ Caio':'Caio'}</button><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
+  ${c.fixas.length?'<div class="sm" style="text-align:center">Arraste uma despesa para a esquerda para excluir</div>':''}</div>`;
 }
 function telaGastos(c){
   const tCartao=c.tGas+c.tPar, tBoletos=c.tBol+c.fixas.filter(f=>f.boleto).reduce((a,f)=>a+f.valor,0);
@@ -357,6 +361,13 @@ async function entrar(){try{await api('/api/login','POST',{pin:$('#pin').value})
 function copiar(t){navigator.clipboard?.writeText(t);alert('Código copiado')}
 async function lerGmail(){const b=$('#lerGmail');if(b){b.disabled=true;b.textContent='Lendo…'}try{db=await api('/api/gmail','POST')}catch(e){}render()}
 async function dividirParcela(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const p=db.parceladas.find(x=>x.id===id);if(!p)return;const novo=p.dividido?{valorParcela:p.valorParcela*2,dividido:false}:{valorParcela:Math.round(p.valorParcela/2*100)/100,dividido:true};db=await api('/api/parceladas/'+id,'PUT',novo);render();scrollTo(0,y)}
+async function apagarFixa(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const f=db.fixas.find(x=>x.id===id);if(!f||!confirm('Excluir "'+f.nome+'"?'))return;const y=scrollY;db=await api('/api/fixas/'+id,'DELETE');render();scrollTo(0,y)}
+// arrastar para a esquerda revela a lixeira
+(function(){let el=null,x0=0,y0=0,dx=0,mov=false;
+  addEventListener('touchstart',e=>{const s=e.target.closest('.swipe');document.querySelectorAll('.swipe-fg').forEach(f=>{if(!s||f.parentNode!==s)f.style.transform=''});if(!s||e.target.closest('.swipe-del'))return;el=s.querySelector('.swipe-fg');x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;mov=false;el.style.transition='none'},{passive:true});
+  addEventListener('touchmove',e=>{if(!el)return;const ddx=e.touches[0].clientX-x0,ddy=e.touches[0].clientY-y0;if(!mov&&Math.abs(ddy)>Math.abs(ddx)){el.style.transition='';el=null;return}mov=true;const base=el.dataset.aberto?-84:0;dx=Math.min(0,Math.max(-110,base+ddx));el.style.transform=`translateX(${dx}px)`},{passive:true});
+  addEventListener('touchend',()=>{if(!el)return;el.style.transition='';if(mov){const abre=dx<-42;el.style.transform=abre?'translateX(-84px)':'';if(abre)el.dataset.aberto='1';else delete el.dataset.aberto}el=null});
+})();
 async function mudaCatFixa(id,cat){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const f=db.fixas.find(x=>x.id===id);if(!f)return;const nova=f.categoria===cat?'':cat;f.categoria=nova;render();scrollTo(0,y);db=await api('/api/fixas/'+id,'PUT',{categoria:nova});render();scrollTo(0,y)}
 async function marcaBoleto(id){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const f=db.fixas.find(x=>x.id===id);if(!f)return;f.boleto=!f.boleto;render();scrollTo(0,y);db=await api('/api/fixas/'+id,'PUT',{boleto:f.boleto});render();scrollTo(0,y)}
 async function dividir(id,n){if(db.demo)return aviso('Modo demonstração: só para visualização');const y=scrollY;const g=db.gastos.find(x=>x.id===id);if(!g)return;const dv=g.divisor||(g.dividido?2:0);
