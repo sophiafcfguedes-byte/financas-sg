@@ -123,7 +123,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v17</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v18</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -308,10 +308,10 @@ function telaPoupanca(c){
     <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Registrar valor guardado</button></div>
   ${(()=>{const ini=db.reserva.reduce((a,r)=>r.mes<a?r.mes:a,'2026-11');const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
     const v=meses.map(m=>{const no=db.reserva.filter(r=>r.mes===m).reduce((a,r)=>a+r.valor,0);const ac=(db.saldoInicial||0)+db.reserva.filter(r=>r.mes<=m).reduce((a,r)=>a+r.valor,0);return{m,no,ac}});
-    const mx=Math.max(1,...v.map(x=>x.ac));const w=v.length>4?14:36;
+    const mx=Math.max(1,...v.map(x=>x.no));const w=v.length>4?22:48;
     return`<div class="card"><div class="sec-h"><span>Poupança acumulada</span><b>${hid(c.acumulado)}</b></div>
-    <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:var(--c1)"></i>Total guardado</span><span style="display:flex;align-items:center;gap:6px"><i style="width:10px;height:10px;border-radius:3px;background:#1D6B4A"></i>Guardado no mês</span></div>
-    <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${v.map(x=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Total ${brl(x.ac)}" style="width:${w}px;border-radius:3px 3px 0 0;background:var(--c1);height:${x.ac/mx*100}%"></i><i title="No mês ${brl(x.no)}" style="width:${w}px;border-radius:3px 3px 0 0;background:#1D6B4A;height:${x.no/mx*100}%"></i></div>`).join('')}</div>
+    <div class="sm">Quanto você guardou em cada mês · total acumulado no topo</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${v.map(x=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="${brl(x.no)}" style="width:${w}px;border-radius:4px 4px 0 0;background:#1D6B4A;height:${x.no/mx*100}%"></i></div>`).join('')}</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${v.map(x=>`<span style="${x.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+x.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado em ${MESES[+mes.slice(5)-1]}</span><b style="color:var(--ink)">${brl(c.guardado)}</b></div>
     </div>`})()}
