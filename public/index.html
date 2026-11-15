@@ -119,11 +119,12 @@ nav svg{width:22px;height:22px}
 .catsel{display:block;padding:0 14px 12px}.catsel select{height:36px;border-radius:18px;border:1px solid var(--border);background:var(--bg);padding:0 30px 0 12px;font-size:14px;font-weight:600;color:var(--navy);appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%);background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px;background-repeat:no-repeat}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#16274A;color:#fff;padding:12px 18px;border-radius:14px;font-size:14px;font-weight:600;opacity:0;transition:.2s;z-index:30;pointer-events:none;white-space:nowrap}.toast.on{opacity:1;transform:translateX(-50%)}
+@media (prefers-color-scheme: dark){[style*="#FBE9E7"]{background:#3A1614!important;color:#FF9C8F!important}}
 .toggle{display:flex;align-items:center;gap:10px;font-size:14px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v19</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v20</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -305,6 +306,7 @@ function telaBoletos(c){
 function telaPoupanca(c){
   const pg=c.meta?Math.min(100,c.guardado/c.meta*100):0;
   return topo('Poupança',`Renda de ${MESES[+mes.slice(5)-1]}: ${hid(c.renda)}`)+`
+  ${c.renda>0?(c.guardado>=c.meta?`<div role="status" style="background:var(--okBg);color:var(--ok);border-radius:14px;padding:12px 14px;font-weight:700;font-size:14px">Parabéns! Você guardou ${(c.guardado/c.renda*100).toLocaleString('pt-BR',{maximumFractionDigits:1})}% do seu salário este mês.</div>`:`<div role="status" style="background:#FBE9E7;color:#B3261E;border-radius:14px;padding:12px 14px;font-weight:700;font-size:14px">Você ainda não guardou os 25% do mês.${oculto?'':` <span style="font-weight:600">Faltam ${brl(c.meta-Math.max(0,c.guardado))}.</span>`}</div>`):''}
   <div class="card dark"><div class="h"><div><b>Reserva de emergência</b><small>25% do que você recebeu no mês · obrigatório</small></div><b>${brl(c.meta)}</b></div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado este mês</span><b style="color:#D6B370">${brl(c.guardado)} de ${brl(c.meta)}</b></div>
     <div class="bar"><i style="width:${pg}%"></i></div>
