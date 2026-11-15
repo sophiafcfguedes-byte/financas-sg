@@ -127,7 +127,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v26</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v27</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -256,7 +256,7 @@ function telaInicio(c){
 function telaFixas(c){
   return topo('Despesas fixas',mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.tFix)}</b></div>
-  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ É boleto':'É boleto?'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
+  <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ Boleto':'Boleto'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
   ${c.fixas.length?'<div class="sm" style="text-align:center">Arraste uma despesa para a esquerda para excluir</div>':''}</div>`;
 }
 function telaGastos(c){
@@ -297,14 +297,17 @@ function telaGraficos(c){
     <div style="display:grid;grid-template-columns:repeat(${Math.max(meses.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${vals.map(v=>`<span style="${v.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+v.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
   </div>`;
 }
+async function apagarItem(t,id,k){if(db.demo)return aviso('Modo demonstração: só para visualização');const lista={fixas:db.fixas,gastos:db.gastos,parceladas:db.parceladas}[t];const x=lista&&lista.find(i=>i.id===id);if(!x||!confirm('Excluir "'+(x.desc||x.nome||'item')+'"?'))return;
+  db=await api('/api/'+t+'/'+id,'DELETE');render();detalheCat(k)}
 function detalheCat(k){const c=calc(mes);const itens=[];
-  c.fixas.forEach(f=>{const kk=CATS.includes(f.categoria)?f.categoria:'Fixas';if(kk===k)itens.push({n:f.nome,s:'Despesa fixa',v:f.valor})});
-  c.gastos.forEach(g=>{if((g.categoria||'Sem categoria')===k)itens.push({n:g.desc||g.categoria,s:(g.forma||'')+' · '+dataBR(g.data)+(g.fonte==='fatura'?' · fatura':''),v:g.valor})});
-  c.parcelas.filter(p=>!p.naFatura).forEach(p=>{if(p.categoria===k)itens.push({n:p.desc,s:'Parcela '+p.n+' de '+p.total,v:p.valorParcela})});
+  c.fixas.forEach(f=>{const kk=CATS.includes(f.categoria)?f.categoria:'Fixas';if(kk===k)itens.push({t:'fixas',id:f.id,n:f.nome,s:'Despesa fixa',v:f.valor})});
+  c.gastos.forEach(g=>{if((g.categoria||'Sem categoria')===k)itens.push({t:'gastos',id:g.id,n:g.desc||g.categoria,s:(g.forma||'')+' · '+dataBR(g.data)+(g.fonte==='fatura'?' · fatura':''),v:g.valor})});
+  c.parcelas.filter(p=>!p.naFatura).forEach(p=>{if(p.categoria===k)itens.push({t:'parceladas',id:p.id,n:p.desc,s:'Parcela '+p.n+' de '+p.total,v:p.valorParcela})});
   itens.sort((a,b)=>b.v-a.v);const tot=itens.reduce((a,x)=>a+x.v,0);
   const ab=db.demo;if(ab)db.demo=false;
   abrir(`<h2>${esc(k)}</h2><div class="sm">${mesNome(mes)} · ${itens.length} ${itens.length===1?'item':'itens'}</div><div style="font-size:26px;font-weight:800">${brl(tot)}</div>
-  <div class="list">${itens.map(x=>`<div class="item"><div class="t"><b>${esc(x.n)}</b><small>${esc(x.s)}</small></div><span class="v">${brl(x.v)}</span></div>`).join('')||'<div class="empty">Nada nesta categoria.</div>'}</div>
+  <div class="list">${itens.map(x=>`<div class="swipe"><button class="swipe-del" aria-label="Excluir ${esc(x.n)}" onclick="apagarItem('${x.t}','${x.id}','${esc(k)}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg"><div class="item"><div class="t"><b>${esc(x.n)}</b><small>${esc(x.s)}</small></div><span class="v">${brl(x.v)}</span></div></div></div>`).join('')||'<div class="empty">Nada nesta categoria.</div>'}</div>
+  ${itens.length?'<div class="sm" style="text-align:center">Arraste para a esquerda para excluir</div>':''}
   <button class="btn ghost" onclick="fechar()">Fechar</button>`);if(ab)db.demo=true}
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
@@ -413,7 +416,7 @@ function formRenda(){const es=entradasDe(mes);
   <button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 function formFixa(id){const f=db.fixas.find(x=>x.id===id)||{};const pago=id&&(db.pagos[mes]||[]).includes(id);
   abrir(`<h2>${id?'Editar':'Nova'} despesa fixa</h2>${campo('n','Nome',undefined,f.nome,'placeholder="Ex.: Condomínio"')}${valorCampo('val','Valor',f.valor)}${sel('cat','Categoria',['Sem categoria',...CATS],CATS.includes(f.categoria)?f.categoria:'Sem categoria')}
-  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),categoria:v('cat')==='Sem categoria'?'':v('cat')})`,id,'fixas')}`)}
+  ${rodape(`salvar('/api/fixas${id?'/'+id:''}','${id?'PUT':'POST'}',{nome:v('n'),valor:v('val'),categoria:v('cat')==='Sem categoria'?'':v('cat')})`)}`)}
 function formGasto(id){const g=db.gastos.find(x=>x.id===id)||{};let cat=g.categoria||'Compras';
   abrir(`<h2>${id?'Editar gasto':'Novo gasto'}</h2>${valorCampo('val','Valor',g.valor)}
   <div class="field"><label>Categoria</label><div class="chips" id="chips">${CATS.map(k=>`<button class="chip ${k===cat?'on':''}" data-c="${k}">${k}</button>`).join('')}</div></div>
