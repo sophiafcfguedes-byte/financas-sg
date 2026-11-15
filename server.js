@@ -120,10 +120,30 @@ function lancamentoDe(db, p) {
   const cands = db.gastos.filter(g => { const t = normTit(g.desc); return t && (t === n || (n.length >= 4 && t.length >= 4 && (t.includes(n) || n.includes(t)))); });
   return cands.sort((a, b) => ((b.mes || b.data) > (a.mes || a.data) ? 1 : -1))[0] || null;
 }
+// compras da fatura repetidas (mesma fatura lida duas vezes, ou a mesma parcela duas vezes no mês): fica só uma
+function chaveCompra(g) {
+  const m = /\((\d+)\/(\d+)\)\s*$/.exec(g.desc || '');
+  const mes = g.mes || String(g.data || '').slice(0, 7);
+  return m ? `P|${mes}|${normTit(g.desc)}|${m[2]}` : `C|${mes}|${normTit(g.desc)}|${g.valor}|${g.data}`;
+}
+function tirarDuplicadas(db) {
+  const vistos = new Map(); const fica = []; let n = 0;
+  for (const g of db.gastos || []) {
+    if (g.fonte !== 'fatura') { fica.push(g); continue; }
+    const k = chaveCompra(g);
+    if (vistos.has(k)) { n++; const a = vistos.get(k);
+      const na = +((/\((\d+)\/\d+\)\s*$/.exec(a.desc) || [])[1] || 0), ng = +((/\((\d+)\/\d+\)\s*$/.exec(g.desc) || [])[1] || 0);
+      if (ng > na && !a.divisor) { a.desc = g.desc; a.valor = g.valor; a.data = g.data; } if (g.catManual && !a.catManual) { a.categoria = g.categoria; a.catManual = true; } if (g.divisor && !a.divisor) Object.assign(a, { valor: g.valor, divisor: g.divisor, dividido: true, original: g.original }); if (g.chave) { db.removidos = db.removidos || []; db.removidos.push(g.chave); } continue; }
+    vistos.set(k, g); fica.push(g);
+  }
+  if (n) db.gastos = fica;
+  return n;
+}
 function sincronizarParcelas(db) {
+  if (tirarDuplicadas(db)) var mudouDup = true;
   let mudou = false;
   for (const p of db.parceladas || []) { const g = lancamentoDe(db, p); if (g && g.valor !== p.valorParcela) { p.valorParcela = g.valor; mudou = true; } }
-  return mudou;
+  return mudou || !!mudouDup;
 }
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/manifest+json', '.webmanifest': 'application/manifest+json' };
 
@@ -286,6 +306,7 @@ ajustarCategorias();
   if (n) { save(db); console.log(`Fatura: ${n} compra(s) movida(s) para o mês do vencimento`); }
 })();
 recategorizar();
+{ const d = loadReal(); const n = tirarDuplicadas(d); if (n) { saveReal(d); console.log(`Fatura: ${n} compra(s) repetida(s) removida(s)`); } }
 // ---- leitura automática do Gmail ----
 const GMAIL_USER = process.env.GMAIL_USER, GMAIL_PASS = (process.env.GMAIL_APP_PASS || '').replace(/\s/g, '');
 let lendo = false;
@@ -301,9 +322,12 @@ async function rodarGmail() {
     const { categorizar } = require('./gmail.js');
     let nCompras = 0;
     for (const e of r.encontrados) {
+      const jaTem = new Set(db.gastos.filter(g => g.fonte === 'fatura').map(chaveCompra));
       if (e.compras) for (const c of e.compras) {
         const k = (e.msgId || e.codigo) + '|' + c.data + '|' + c.desc + '|' + c.valor + '|' + c.parcela;
-        if (gChaves.has(k)) continue; gChaves.add(k); nCompras++;
+        if (gChaves.has(k)) continue; gChaves.add(k);
+        const novo = { desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.data, mes: String(e.venc).slice(0, 7) };
+        if (jaTem.has(chaveCompra(novo))) continue; jaTem.add(chaveCompra(novo)); nCompras++;
         db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: c.desc + (c.parcela ? ` (${c.parcela})` : ''), valor: c.valor, data: c.data, mes: String(e.venc).slice(0, 7), categoria: categorizar(c.desc, db.aprendido || {}), forma: 'Cartão', fonte: 'fatura', chave: k });
       }
       if (e.compras) for (const b of db.boletos) if ((e.msgId && b.msgId === e.msgId) || (e.codigo && b.codigo === e.codigo)) b.ehFatura = true;
