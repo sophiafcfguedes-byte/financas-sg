@@ -130,7 +130,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v35</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v36</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -188,7 +188,10 @@ function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(m)).
 function rendaDe(m){return entradasDe(m).reduce((s,e)=>s+e.valor,0)+((db.rendas||{})[m]||0)}
 // poupança: cada registro é o SALDO total da poupança naquele momento
 // poupança: registro "saldo" = total da poupança naquele momento; registro "soma" = valor guardado que se soma ao que já tinha
-function snaps(){const ss=db.reserva.map((r,i)=>({...r,_i:i})).sort((a,b)=>a.mes.localeCompare(b.mes)||(a.em||'').localeCompare(b.em||'')||a._i-b._i);let bal=0;ss.forEach(r=>{const ant=bal;bal=r.tipo==='soma'?bal+r.valor:r.valor;r.bal=bal;r.dif=bal-ant});return ss}
+function snaps(){const ss=db.reserva.map((r,i)=>({...r,_i:i})).sort((a,b)=>a.mes.localeCompare(b.mes)||(a.em||'').localeCompare(b.em||'')||a._i-b._i);
+  // valor somado num mês anterior DEPOIS de você já ter informado um saldo mais à frente: esse saldo também sobe
+  const extra=r=>ss.filter(x=>x.tipo==='soma'&&x.mes<r.mes&&(x.em||'')>(r.em||'')).reduce((a,x)=>a+x.valor,0);
+  let bal=0;ss.forEach(r=>{const ant=bal;bal=r.tipo==='soma'?bal+r.valor:r.valor+extra(r);r.bal=bal;r.dif=bal-ant});return ss}
 function saldoAte(m){const ss=snaps().filter(r=>r.mes<=m);return ss.length?ss[ss.length-1].bal:0}
 function saldoAntes(m){const ss=snaps().filter(r=>r.mes<m);return ss.length?ss[ss.length-1].bal:0}
 function guardadoNo(m){return snaps().some(r=>r.mes===m)?saldoAte(m)-saldoAntes(m):0}
