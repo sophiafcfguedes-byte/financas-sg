@@ -128,7 +128,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v28</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v29</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -284,7 +284,7 @@ function telaGraficos(c){
     const p=(rr,t)=>[cx+rr*Math.cos(t),cy+rr*Math.sin(t)];const [x1,y1]=p(R,ang),[x2,y2]=p(R,a2-0.0001),[x3,y3]=p(r,a2-0.0001),[x4,y4]=p(r,ang);
     const d=`M${x1} ${y1}A${R} ${R} 0 ${lg} 1 ${x2} ${y2}L${x3} ${y3}A${r} ${r} 0 ${lg} 0 ${x4} ${y4}Z`;ang=a2;return`<path d="${d}" fill="${CORES[k]||'#9AA3B5'}"/>`}).join('');
   // últimos 6 meses
-  const INICIO='2026-11';const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5)).filter(m=>m>=INICIO);const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
+  const INICIO='2026-10';const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5)).filter(m=>m>=INICIO);const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
   const mx=Math.max(1,...vals.map(v=>Math.max(v.g,v.r)));
   return topo('Gráficos',mesNome(mes))+`
   <div class="card"><div class="sec-h"><span>Para onde foi o dinheiro</span><b>${brl(cats.length?tot:0)}</b></div>
@@ -330,7 +330,7 @@ function telaPoupanca(c){
     <span class="sm">${c.guardado>=c.meta&&c.meta?'Meta do mês cumprida':'Faltam '+brl(Math.max(0,c.meta-c.guardado))}</span>
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:12px;cursor:pointer"><span style="color:var(--heroMuted)">Saldo atual</span><b style="color:#fff">${hid(c.acumulado)}</b></div>
     <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Atualizar saldo da poupança</button></div>
-  ${(()=>{const ss0=snaps();const ini=ss0.length>1?addMes(ss0[0].mes,1):'2026-11';const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
+  ${(()=>{const ss0=snaps();const ini=ss0.length>1?addMes(ss0[0].mes,1):'2026-10';const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
     const v=meses.map(m=>({m,no:Math.max(0,guardadoNo(m)),neg:guardadoNo(m)<0,ac:saldoAte(m)}));
     const mx=Math.max(1,...v.map(x=>x.no));const w=v.length>4?22:48;
     return`<div class="card"><div class="sec-h"><span>Poupança acumulada</span><b>${hid(c.acumulado)}</b></div>
@@ -366,7 +366,7 @@ function render(){
 }
 async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
-const MES_MIN='2026-11';const mesAtual=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const MES_MIN='2026-10';const mesAtual=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 function mudaMes(n){const m=addMes(mes,n);if(m<MES_MIN||m>mesAtual())return;mes=m;render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function trocarSenha(){const a=$('#s1').value,b=$('#s2').value;if(a.length<4)return $('#err').textContent='Use pelo menos 4 caracteres';if(a!==b)return $('#err').textContent='As senhas não são iguais';try{db=await api('/api/senha','POST',{senha:a});render()}catch(e){$('#err').textContent=e.message}}
