@@ -123,7 +123,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v15</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v16</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -316,7 +316,8 @@ function telaPoupanca(c){
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;align-items:end;height:150px">${v.map(x=>`<div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i title="Total ${brl(x.ac)}" style="width:${w}px;border-radius:3px 3px 0 0;background:var(--c1);height:${x.ac/mx*100}%"></i><i title="No mês ${brl(x.no)}" style="width:${w}px;border-radius:3px 3px 0 0;background:#1D6B4A;height:${x.no/mx*100}%"></i></div>`).join('')}</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.max(v.length,3)},minmax(0,1fr));gap:6px;font-size:11px;color:var(--muted);text-align:center">${v.map(x=>`<span style="${x.m===mes?'font-weight:800;color:var(--ink)':''}">${MESES[+x.m.slice(5)-1].slice(0,3)}</span>`).join('')}</div>
     <div class="sm" style="display:flex;justify-content:space-between"><span>Guardado em ${MESES[+mes.slice(5)-1]}</span><b style="color:var(--ink)">${brl(c.guardado)}</b></div>
-    </div>`})()}`;
+    </div>`})()}
+  ${db.reserva.length?`<div class="sec"><div class="sec-h"><span>Registros</span></div><div class="list">${[...db.reserva].sort((a,b)=>b.mes.localeCompare(a.mes)).map(r=>`<button class="item" onclick="formReserva('${r.id}')"><div class="t"><b>${mesNome(r.mes)}</b><small>${esc(r.nota||'Reserva')} · toque para editar</small></div><span class="v">${brl(r.valor)}</span></button>`).join('')}</div></div>`:''}`;
 }
 
 // ---------- render ----------
@@ -408,9 +409,10 @@ function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Qua
 function formSaldo(){abrir(`<h2>Total já guardado</h2>${valorCampo('val','Quanto você já tinha guardado antes de usar o app',db.saldoInicial||'')}
   <div class="sm">O total acumulado é esse valor + tudo que você registrar em "Registrar valor guardado".</div>
   ${rodape("salvar('/api/saldo','PUT',{valor:v('val')})")}`)}
-function formReserva(){abrir(`<h2>Guardei na reserva</h2>${valorCampo('val','Valor guardado')}${campo('nota','Onde (opcional)',undefined,'','placeholder="Ex.: CDB, poupança"')}
-  <div class="sm">Conta para ${mesNome(mes).toLowerCase()}.</div>
-  ${rodape(`salvar('/api/reserva','POST',{valor:v('val'),nota:v('nota'),mes})`)}`)}
+function formReserva(id){const r=db.reserva.find(x=>x.id===id)||{};
+  abrir(`<h2>${id?'Editar valor guardado':'Guardei na reserva'}</h2>${valorCampo('val','Valor guardado',r.valor)}
+  <div class="row2">${campo('mesr','Mês','month',r.mes||mes)}${campo('nota','Onde (opcional)',undefined,r.nota,'placeholder="Ex.: CDB"')}</div>
+  ${rodape(`salvar('/api/reserva${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),nota:v('nota'),mes:v('mesr')})`,id,'reserva')}`)}
 
 carregar();
 </script>
