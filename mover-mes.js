@@ -1,6 +1,15 @@
 // Move tudo que está em um mês para outro (ex.: novembro → outubro), com cópia de segurança.
 // Uso: node mover-mes.js 2026-11 2026-10 [arquivo]
 const fs = require('fs'), path = require('path');
+// Só a poupança, todos os registros N meses: node mover-mes.js --poupanca -1
+if (process.argv[2] === '--poupanca') {
+  const n = parseInt(process.argv[3]); const arq = process.argv[4] || path.join(process.env.FIN_DATA || path.join(process.env.HOME, 'financas-data'), 'financas.json');
+  if (!n) { console.log('Uso: node mover-mes.js --poupanca -1'); process.exit(1); }
+  const db = JSON.parse(fs.readFileSync(arq, 'utf8')); fs.copyFileSync(arq, arq.replace(/\.json$/, `-antes-de-mover-${Date.now()}.json`));
+  const addM = (m, k) => { let [y, mm] = m.split('-').map(Number); mm += k; y += Math.floor((mm - 1) / 12); mm = ((mm - 1) % 12 + 12) % 12 + 1; return y + '-' + String(mm).padStart(2, '0'); };
+  for (const r of db.reserva || []) { const de = r.mes; r.mes = addM(r.mes, n); console.log(`  ${de} → ${r.mes}  R$ ${r.valor}`); }
+  fs.writeFileSync(arq, JSON.stringify(db, null, 2)); console.log('Poupança movida (cópia de segurança guardada ao lado)'); process.exit(0);
+}
 const [de, para, arqArg] = process.argv.slice(2);
 if (!/^\d{4}-\d{2}$/.test(de || '') || !/^\d{4}-\d{2}$/.test(para || '')) { console.log('Uso: node mover-mes.js 2026-11 2026-10'); process.exit(1); }
 const arq = arqArg || path.join(process.env.FIN_DATA || path.join(process.env.HOME, 'financas-data'), 'financas.json');
