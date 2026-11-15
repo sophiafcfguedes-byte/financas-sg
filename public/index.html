@@ -114,6 +114,8 @@ nav svg{width:22px;height:22px}
 .cc{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--border);background:transparent;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
 .cc.on{background:#1D6B4A;border-color:#1D6B4A;color:#fff}
 .catchips{padding-bottom:8px}.parc{border-bottom:1px solid var(--line)}.parc .item{border-bottom:0}
+.busca{display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--muted)}
+.busca input{flex:1;border:0;background:transparent;font-size:16px;outline:none;color:var(--ink);min-width:0}
 .swipe{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}.swipe:last-child{border-bottom:0}
 .swipe-del{position:absolute;right:0;top:0;bottom:0;width:84px;border:0;background:#C0392B;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .swipe-fg{position:relative;background:var(--card);transition:transform .2s;border-bottom:0!important}
@@ -128,13 +130,16 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v32</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v33</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
 const ESSENCIAIS=['Mercado','Transporte','Saúde','Casa','Contas','Educação'];
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 let db=null, tab='inicio', mes=(()=>{const d=new Date(),ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();let y=d.getFullYear(),m=d.getMonth()+1;if(d.getDate()<ult){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})();
+let busca='';
+function semAcento(t){return String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function filtrar(q){busca=q;const t=semAcento(q.trim());let n=0;document.querySelectorAll('.gasto[data-busca]').forEach(el=>{const ok=!t||semAcento(el.dataset.busca).includes(t);el.style.display=ok?'':'none';if(ok)n++});document.querySelectorAll('.parc').forEach(el=>{el.style.display=!t||semAcento(el.textContent).includes(t)?'':'none'});let v=document.getElementById('semres');if(t&&!n){if(!v){v=document.createElement('div');v.id='semres';v.className='empty';v.textContent='Nada encontrado';document.querySelector('.gasto[data-busca]')?.parentNode.appendChild(v)}}else v?.remove()}
 let oculto=false; try{oculto=localStorage.getItem('oculto')==='1'}catch(e){}
 
 const $=s=>document.querySelector(s);
@@ -264,6 +269,7 @@ function telaFixas(c){
 function telaGastos(c){
   const tCartao=c.tGas+c.tPar, tBoletos=c.tBol+c.fixas.filter(f=>f.boleto&&!f.cartao).reduce((a,f)=>a+f.valor,0);
   return topo('Gastos',mesNome(mes))+`
+  <label class="busca"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="busca" type="search" placeholder="Pesquisar gastos" aria-label="Pesquisar gastos" value="${esc(busca)}" oninput="filtrar(this.value)" autocomplete="off"></label>
   <div class="card"><div class="h"><div><b>Gastos totais</b><small>Cartão e lançamentos ${brl(tCartao)} · Boletos ${brl(tBoletos)}</small></div><b style="color:#C0392B;font-size:20px;white-space:nowrap">${hid(tCartao+tBoletos)}</b></div></div>
   ${(()=>{const ligados=new Set(c.parcelas.map(p=>p.naFatura).filter(Boolean));const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m&&!ligados.has(x.g.id));const tot=c.parcelas.reduce((s,p)=>s+p.valorParcela,0)+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
   ${c.parcelas.map(p=>`<div class="parc"><button class="item" style="padding:6px 0" onclick="formParcela('${p.id}')"><div class="t"><b>${esc(p.desc)}</b><small>Parcela ${p.n} de ${p.total}${p.naFatura?' · valor da fatura':''} · até ${mesNome(addMes(p.primeiroMes,p.total-1)).toLowerCase()}</small></div><span class="v">${brl(p.valorParcela)}</span></button></div>`).join('')}
@@ -271,7 +277,7 @@ function telaGastos(c){
   ${!c.parcelas.length&&!fp.length?'<div class="sm">Nenhuma parcela neste mês.</div>':''}`})()}
   <button class="btn ghost" onclick="formParcela()">+ Compra parcelada</button></div>
   <div class="sec"><div class="sec-h"><span>Lançamentos</span></div>
-  <div class="list">${c.gastos.length?c.gastos.map(g=>`<div class="gasto"><button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>
+  <div class="list">${c.gastos.length?c.gastos.map(g=>`<div class="gasto" data-busca="${esc(((g.desc||'')+' '+(g.categoria||'')+' '+(g.forma||'')+' '+brl(g.valor)).toLowerCase())}"><button class="item" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc||g.categoria)}</b><small>${esc(g.forma)} · ${dataBR(g.data)}${g.fonte==='fatura'?' · da fatura':''}</small></div><span class="v">${brl(g.valor)}</span></button>
     <div class="catchips" role="group" aria-label="Categoria de ${esc(g.desc||'gasto')}">${(CATS.includes(g.categoria)||!g.categoria?CATS:[g.categoria,...CATS]).map(k=>`<button class="cc ${k===g.categoria?'on':''}" aria-pressed="${k===g.categoria}" onclick="mudaCat('${g.id}','${k}')">${k}</button>`).join('')}</div>
     <div class="gacoes">${(()=>{const dv=g.divisor||(g.dividido?2:0);return dv?`<button class="ga on" aria-pressed="true" onclick="dividir('${g.id}',${dv})">Dividido ÷${dv} · desfazer</button>`:`<button class="ga" onclick="dividir('${g.id}',2)">÷ 2</button><button class="ga" onclick="dividir('${g.id}',3)">÷ 3</button>`})()}<button class="ga del" aria-label="Excluir ${esc(g.desc||'gasto')}" onclick="apagarGasto('${g.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Excluir</button></div></div>`).join(''):'<div class="empty">Use o botão + para lançar um gasto.</div>'}</div></div>`;
 }
@@ -362,6 +368,7 @@ function render(){
     const f=document.createElement('button');f.className='fab';f.setAttribute('aria-label','Lançar gasto');f.textContent='+';f.onclick=()=>tab==='fixas'?formFixa():formGasto();document.body.appendChild(f);
   }
   const nomes={inicio:'Início',fixas:'Fixas',gastos:'Gastos',graficos:'Gráficos',poupanca:'Poupança'};
+  if(tab==='gastos'&&busca)filtrar(busca);
   {const fb=document.querySelector('.fab');if(fb){fb.setAttribute('aria-label',tab==='fixas'?'Adicionar despesa fixa':'Lançar gasto');fb.style.display=(tab==='fixas'||tab==='gastos')?'':'none'}}
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
