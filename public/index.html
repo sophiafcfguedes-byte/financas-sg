@@ -94,8 +94,8 @@ nav button{height:64px;border:0;background:none;font-size:11px;font-weight:600;c
 nav button{position:relative}nav button.on{color:var(--navy)}nav button.on::before{content:'';position:absolute;inset:6px 6px;border-radius:12px;background:var(--tabOn);z-index:-1}nav div{position:relative;z-index:0}
 nav svg{width:22px;height:22px}
 /* folha de formulário */
-.sheet-bg{position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:var(--bg);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto}
+.sheet-bg{cursor:pointer;-webkit-tap-highlight-color:transparent;position:fixed;inset:0;background:rgba(5,10,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{cursor:auto;background:var(--bg);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto}
 .sheet>*{flex-shrink:0}.sheet{-webkit-overflow-scrolling:touch;overscroll-behavior:contain;max-height:85dvh}
 .sheet h2{margin:0 0 4px;font-size:20px}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -128,7 +128,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v31</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v32</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -399,7 +399,7 @@ async function pagarBoleto(id,v){db=await api('/api/boletos/'+id,'PUT',{pago:v})
 async function pagarFixa(id,v){db=await api('/api/pago','POST',{id,mes,pago:v});fechar();render()}
 
 // ---------- formulários ----------
-function abrir(html){if(db&&db.demo){aviso('Modo demonstração: só para visualização');return}fechar();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;bg.onclick=e=>{if(e.target===bg)fechar()};document.body.appendChild(bg);bg.querySelector('input')?.focus()}
+function abrir(html){if(db&&db.demo){aviso('Modo demonstração: só para visualização');return}fechar();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;bg.onclick=e=>{if(e.target===bg)fechar()};bg.addEventListener('touchend',e=>{if(e.target===bg){e.preventDefault();fechar()}});document.body.appendChild(bg);bg.querySelector('input')?.focus()}
 function fechar(){document.querySelector('.sheet-bg')?.remove()}
 const campo=(id,label,tipo='text',val='',extra='')=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${tipo}" value="${esc(val)}" ${extra}></div>`;
 const fmtMoeda=n=>(+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
