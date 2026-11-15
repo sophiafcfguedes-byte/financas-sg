@@ -123,7 +123,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v16</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v17</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -306,9 +306,7 @@ function telaPoupanca(c){
     <span class="sm">${c.guardado>=c.meta&&c.meta?'Meta do mês cumprida':'Faltam '+brl(Math.max(0,c.meta-c.guardado))}</span>
     <button onclick="formSaldo()" style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:12px;cursor:pointer"><span style="color:var(--heroMuted);display:flex;align-items:center;gap:4px">Total acumulado <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><b style="color:#fff">${hid(c.acumulado)}</b></button>
     <button class="btn" style="background:#C9A45C;color:#0B1220" onclick="formReserva()">Registrar valor guardado</button></div>
-  <div class="card"><div class="h"><div><b>Gastos do mês</b><small>Fixas, boletos, parcelas e lançamentos</small></div><b>${brl(c.gastoTotal)}</b></div></div>
-  <div class="card"><div class="h"><div><b>Livre depois da reserva</b><small>Renda − gastos − reserva</small></div><b class="${c.sobra<0?'warn':''}">${hid(c.sobra)}</b></div></div>
-  ${(()=>{const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>='2026-11');
+  ${(()=>{const ini=db.reserva.reduce((a,r)=>r.mes<a?r.mes:a,'2026-11');const meses=[...Array(12)].map((_,i)=>addMes(mes,i-11)).filter(m=>m>=ini);
     const v=meses.map(m=>{const no=db.reserva.filter(r=>r.mes===m).reduce((a,r)=>a+r.valor,0);const ac=(db.saldoInicial||0)+db.reserva.filter(r=>r.mes<=m).reduce((a,r)=>a+r.valor,0);return{m,no,ac}});
     const mx=Math.max(1,...v.map(x=>x.ac));const w=v.length>4?14:36;
     return`<div class="card"><div class="sec-h"><span>Poupança acumulada</span><b>${hid(c.acumulado)}</b></div>
