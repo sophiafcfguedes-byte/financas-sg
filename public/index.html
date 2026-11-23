@@ -130,13 +130,13 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v39</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v40</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
 const ESSENCIAIS=['Mercado','Transporte','Saúde','Casa','Contas','Educação'];
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-let db=null, tab='inicio', mes=(()=>{const d=new Date(),ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();let y=d.getFullYear(),m=d.getMonth()+1;if(d.getDate()<ult){m--;if(!m){m=12;y--}}return y+'-'+String(m).padStart(2,'0')})();
+let db=null, tab='inicio', mes=(()=>{const d=new Date();let y=d.getFullYear(),m=d.getMonth();if(!m){m=12;y--}return y+'-'+String(m).padStart(2,'0')})(); // mês de referência = mês passado
 let busca='';
 function semAcento(t){return String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function filtrar(q){busca=q;const t=semAcento(q.trim());let n=0;document.querySelectorAll('.gasto[data-busca]').forEach(el=>{const ok=!t||semAcento(el.dataset.busca).includes(t);el.style.display=ok?'':'none';if(ok)n++});document.querySelectorAll('.parc').forEach(el=>{el.style.display=!t||semAcento(el.textContent).includes(t)?'':'none'});let v=document.getElementById('semres');if(t&&!n){if(!v){v=document.createElement('div');v.id='semres';v.className='empty';v.textContent='Nada encontrado';document.querySelector('.gasto[data-busca]')?.parentNode.appendChild(v)}}else v?.remove()}
@@ -184,7 +184,8 @@ async function iconeBonito(){
 async function salvar(url,method,data){db=await api(url,method,data);fechar();render()}
 
 // ---------- cálculos do mês ----------
-function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(m)).sort((a,b)=>b.data.localeCompare(a.data))}
+const cal=m=>addMes(m,1); // mês do calendário em que o mês de referência m é pago/recebido
+function entradasDe(m){return (db.entradas||[]).filter(e=>e.data.startsWith(cal(m))).sort((a,b)=>b.data.localeCompare(a.data))}
 function rendaDe(m){return entradasDe(m).reduce((s,e)=>s+e.valor,0)+((db.rendas||{})[m]||0)}
 // poupança: cada registro é o SALDO total da poupança naquele momento
 // poupança: registro "saldo" = total da poupança naquele momento; registro "soma" = valor guardado que se soma ao que já tinha
@@ -202,14 +203,14 @@ function calc(m){
   const pagos=new Set(db.pagos[m]||[]);
   const fixas=db.fixas.map(f=>({...f,pago:pagos.has(f.id)})).sort((a,b)=>a.dia-b.dia);
   const normTit=t=>String(t||'').replace(/\s*\(\d+\/\d+\)\s*$/,'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'');
-  const gMes=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===m);
+  const gMes=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===cal(m));
   const casa=p=>{const n=normTit(p.desc);return n.length>=3&&gMes.find(g=>{const t=normTit(g.desc);return t===n||(n.length>=4&&t.length>=4&&(t.includes(n)||n.includes(t)))})};
   // parcela cadastrada à mão que já veio na fatura deste mês: usa o valor do lançamento e não soma duas vezes
   const parcelas=db.parceladas.map(p=>({...p,n:diffMes(p.primeiroMes,m)+1})).filter(p=>p.n>=1&&p.n<=p.total).map(p=>{const g=casa(p);return g?{...p,valorParcela:g.valor,naFatura:g.id}:p});
-  const gastos=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===m).sort((a,b)=>b.data.localeCompare(a.data));
+  const gastos=db.gastos.filter(g=>(g.mes||g.data.slice(0,7))===cal(m)).sort((a,b)=>b.data.localeCompare(a.data));
   // boleto de fatura do cartão: as compras já estão em Gastos, então não soma de novo
   const chFat=new Set(db.gastos.filter(g=>g.fonte==='fatura'&&g.chave).map(g=>g.chave.split('|')[0]));
-  const boletos=db.boletos.filter(b=>b.venc.startsWith(m)).map(b=>({...b,ehFatura:b.ehFatura||chFat.has(b.msgId)||chFat.has(b.codigo)||/fatura|cart[aã]o/i.test(b.desc+' '+(b.assunto||''))&&db.gastos.some(g=>g.fonte==='fatura')})).sort((a,b)=>a.venc.localeCompare(b.venc));
+  const boletos=db.boletos.filter(b=>b.venc.startsWith(cal(m))).map(b=>({...b,ehFatura:b.ehFatura||chFat.has(b.msgId)||chFat.has(b.codigo)||/fatura|cart[aã]o/i.test(b.desc+' '+(b.assunto||''))&&db.gastos.some(g=>g.fonte==='fatura')})).sort((a,b)=>a.venc.localeCompare(b.venc));
   const guardado=guardadoNo(m);
   // fixa marcada como Cartão já vem na fatura: não soma de novo
   const tFix=fixas.filter(f=>!f.cartao).reduce((s,f)=>s+f.valor,0), tPar=parcelas.filter(p=>!p.naFatura).reduce((s,p)=>s+p.valorParcela,0);
@@ -247,8 +248,8 @@ function topo(titulo,sub){
 }
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
-  const hojeD=new Date(), noMes=mes===hoje().slice(0,7);
-  return `<div class="top"><div><small>${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">${esc((db.mono||"SG")[0])}<b>${esc((db.mono||"SG").slice(1))}</b></div></div>
+  const hojeD=new Date(), noMes=cal(mes)===hoje().slice(0,7);
+  return `<div class="top"><div><small>Referência: ${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">${esc((db.mono||"SG")[0])}<b>${esc((db.mono||"SG").slice(1))}</b></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
@@ -267,14 +268,14 @@ function telaInicio(c){
   </div>`;
 }
 function telaFixas(c){
-  return topo('Despesas fixas',mesNome(mes))+`
+  return topo('Despesas fixas','Referência: '+mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span>Pago todo mês</span><b>${brl(c.fixas.reduce((a,f)=>a+f.valor,0))}</b></div>
   <div class="list">${c.fixas.length?c.fixas.map(f=>`<div class="swipe" data-id="${f.id}"><button class="swipe-del" aria-label="Excluir ${esc(f.nome)}" onclick="apagarFixa('${f.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button><div class="swipe-fg gasto"><button class="item" onclick="formFixa('${f.id}')"><div class="t"><b>${esc(f.nome)}</b></div><span class="v">${brl(f.valor)}</span></button><div class="gacoes"><button class="ga ${f.boleto?'on':''}" aria-pressed="${!!f.boleto}" onclick="marcaBoleto('${f.id}')">${f.boleto?'✓ Boleto':'Boleto'}</button><button class="ga ${f.cartao?'on':''}" aria-pressed="${!!f.cartao}" onclick="marcaCartao('${f.id}')">${f.cartao?'✓ Cartão':'Cartão'}</button></div></div></div>`).join(''):'<div class="empty">Toque no + para cadastrar aluguel, condomínio, internet… Elas se repetem todo mês.</div>'}</div>
   ${c.fixas.length?'<div class="sm" style="text-align:center">Arraste uma despesa para a esquerda para excluir</div>':''}</div>`;
 }
 function telaGastos(c){
   const tCartao=c.tGas+c.tPar, tBoletos=c.tBol+c.fixas.filter(f=>f.boleto&&!f.cartao).reduce((a,f)=>a+f.valor,0);
-  return topo('Gastos',mesNome(mes))+`
+  return topo('Gastos','Referência: '+mesNome(mes))+`
   <label class="busca"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="busca" type="search" placeholder="Pesquisar gastos" aria-label="Pesquisar gastos" value="${esc(busca)}" oninput="filtrar(this.value)" autocomplete="off"></label>
   <div class="card"><div class="h"><div><b>Gastos totais</b><small>Cartão e lançamentos ${brl(tCartao)} · Boletos ${brl(tBoletos)}</small></div><b style="color:#C0392B;font-size:20px;white-space:nowrap">${hid(tCartao+tBoletos)}</b></div></div>
   ${(()=>{const ligados=new Set(c.parcelas.map(p=>p.naFatura).filter(Boolean));const fp=c.gastos.map(g=>({g,m:/^(.*) \((\d+)\/(\d+)\)$/.exec(g.desc||'')})).filter(x=>x.m&&!ligados.has(x.g.id));const tot=c.parcelas.reduce((s,p)=>s+p.valorParcela,0)+fp.reduce((s,x)=>s+x.g.valor,0);return`<div class="card"><div class="sec-h"><span>Parceladas no cartão</span><b>${brl(tot)}/mês</b></div>
@@ -299,7 +300,7 @@ function telaGraficos(c){
   // últimos 6 meses
   const INICIO='2026-10';const meses=[...Array(6)].map((_,i)=>addMes(mes,i-5)).filter(m=>m>=INICIO);const vals=meses.map(m=>{const x=calc(m);return{m,g:x.gastoTotal,r:x.renda}});
   const mx=Math.max(1,...vals.map(v=>Math.max(v.g,v.r)));
-  return topo('Gráficos',mesNome(mes))+`
+  return topo('Gráficos','Referência: '+mesNome(mes))+`
   <div class="card"><div class="sec-h"><span>Para onde foi o dinheiro</span><b>${brl(cats.length?tot:0)}</b></div>
   ${cats.length?`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <svg viewBox="0 0 180 180" width="150" height="150" role="img" aria-label="Gráfico de gastos por categoria">${fatias}<text x="90" y="86" text-anchor="middle" font-size="11" fill="currentColor" opacity=".6">total</text><text x="90" y="104" text-anchor="middle" font-size="15" font-weight="800" fill="currentColor">${Math.round(tot).toLocaleString('pt-BR')}</text></svg>
@@ -325,7 +326,7 @@ function detalheCat(k){const c=calc(mes);const itens=[];
   <button class="btn ghost" onclick="fechar()">Fechar</button>`);if(ab)db.demo=true}
 function telaBoletos(c){
   const ab=c.boletos.filter(b=>!b.pago),pg=c.boletos.filter(b=>b.pago);
-  return topo('Boletos',mesNome(mes))+`
+  return topo('Boletos','Referência: '+mesNome(mes))+`
   <div class="sec"><div class="sec-h"><span class="warn" style="color:var(--warn)">Em aberto</span><b>${brl(ab.reduce((s,b)=>s+b.valor,0))}</b></div>
   ${ab.length?ab.map(b=>`<div class="card"><div class="h"><div><b>${esc(b.desc)}</b><small>Vence ${dataBR(b.venc)}${b.fonte==='gmail'?' · do Gmail':''}${b.ehFatura?' · compras já em Gastos':''}</small>${b.aviso?`<small class="warn">${esc(b.aviso)}</small>`:''}</div><b>${brl(b.valor)}</b></div>
   <div class="row2">${b.codigo?`<button class="btn ghost" onclick="copiar('${esc(b.codigo)}')">Copiar código</button>`:`<button class="btn ghost" onclick="formBoleto('${b.id}')">Editar</button>`}<button class="btn" onclick="pagarBoleto('${b.id}',true)">Marcar pago</button></div></div>`).join(''):'<div class="list"><div class="empty">Nenhum boleto em aberto.</div></div>'}</div>
@@ -380,8 +381,8 @@ function render(){
 }
 async function sair(){await fetch('/api/logout');db=null;render()}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
-const MES_MIN='2026-10';// o mês só libera no último dia dele (ex.: novembro aparece em 30/11)
-const mesAtual=()=>{const d=new Date(),ult=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');return d.getDate()>=ult?m:addMes(m,-1)};
+const MES_MIN='2026-10';// mês de referência: o que entra/sai neste mês do calendário é do mês passado
+const mesAtual=()=>{const d=new Date();return addMes(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),-1)};
 function mudaMes(n){const m=addMes(mes,n);if(m<MES_MIN||m>mesAtual())return;mes=m;render()}
 function olho(){oculto=!oculto;try{localStorage.setItem('oculto',oculto?'1':'0')}catch(e){}render()}
 async function trocarSenha(){const a=$('#s1').value,b=$('#s2').value;if(a.length<4)return $('#err').textContent='Use pelo menos 4 caracteres';if(a!==b)return $('#err').textContent='As senhas não são iguais';try{db=await api('/api/senha','POST',{senha:a});render()}catch(e){$('#err').textContent=e.message}}
@@ -426,7 +427,7 @@ async function apagar(coll,id){if(db.demo)return aviso('Modo demonstração: só
 
 function formRenda(){const es=entradasDe(mes);
   abrir(`<h2>Recebi dinheiro</h2>${valorCampo('val','Valor recebido')}
-  <div class="row2">${campo('desc','De onde (opcional)',undefined,'','placeholder="Ex.: Cast"')}${campo('dt','Data','date',mes===hoje().slice(0,7)?hoje():mes+'-01')}</div>
+  <div class="row2">${campo('desc','De onde (opcional)',undefined,'','placeholder="Ex.: Cast"')}${campo('dt','Data em que recebeu','date',cal(mes)===hoje().slice(0,7)?hoje():cal(mes)+'-05')}</div>
   <button class="btn" onclick="salvar('/api/entradas','POST',{valor:v('val'),desc:v('desc'),data:v('dt')})">Adicionar</button>
   <div class="sec-h" style="margin-top:6px"><span>Recebido em ${MESES[+mes.slice(5)-1]}</span><b>${brl(rendaDe(mes))}</b></div>
   <div class="list">${es.length?es.map(e=>`<div class="item"><div class="t"><b>${esc(e.desc||'Entrada')}</b><small>${dataBR(e.data)}</small></div><span class="v">${brl(e.valor)}</span><button class="icon-btn" aria-label="Excluir" onclick="apagar('entradas','${e.id}')">×</button></div>`).join(''):'<div class="empty">Nada registrado ainda neste mês.</div>'}</div>
@@ -438,7 +439,7 @@ function formGasto(id){const g=db.gastos.find(x=>x.id===id)||{};let cat=g.catego
   abrir(`<h2>${id?'Editar gasto':'Novo gasto'}</h2>${valorCampo('val','Valor',g.valor)}
   <div class="field"><label>Categoria</label><div class="chips" id="chips">${CATS.map(k=>`<button class="chip ${k===cat?'on':''}" data-c="${k}">${k}</button>`).join('')}</div></div>
   ${campo('desc','Descrição (opcional)',undefined,g.desc,'placeholder="Ex.: Uber, iFood…"')}
-  <div class="row2">${sel('forma','Forma',['Pix','Débito','Dinheiro','Cartão'],g.forma||'Pix')}${campo('dt','Data','date',g.data||(mes===hoje().slice(0,7)?hoje():mes+'-01'))}</div>
+  <div class="row2">${sel('forma','Forma',['Pix','Débito','Dinheiro','Cartão'],g.forma||'Pix')}${campo('dt','Data','date',g.data||(cal(mes)===hoje().slice(0,7)?hoje():cal(mes)+'-01'))}</div>
   ${rodape(`salvar('/api/gastos${id?'/'+id:''}','${id?'PUT':'POST'}',{valor:v('val'),categoria:document.querySelector('.chip.on').dataset.c,desc:v('desc'),forma:v('forma'),data:v('dt')})`,id,'gastos')}`);
   document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on')})}
 function formParcela(id){const p=db.parceladas.find(x=>x.id===id);const cur=p?diffMes(p.primeiroMes,mes)+1:1;
@@ -449,7 +450,7 @@ function formParcela(id){const p=db.parceladas.find(x=>x.id===id);const cur=p?di
   ${rodape(`salvar('/api/parceladas${id?'/'+id:''}','${id?'PUT':'POST'}',{desc:v('desc'),valorParcela:v('val'),total:v('tot'),primeiroMes:addMes(mes,1-(+v('atual')||1)),categoria:v('cat')})`,id,'parceladas')}`)}
 function formBoleto(id){const b=db.boletos.find(x=>x.id===id)||{};
   abrir(`<h2>${id?'Editar':'Novo'} boleto</h2>${campo('desc','De quem é',undefined,b.desc,'placeholder="Ex.: Fatura Itaú"')}
-  <div class="row2">${valorCampo('val','Valor',b.valor)}${campo('venc','Vencimento','date',b.venc||mes+'-10')}</div>
+  <div class="row2">${valorCampo('val','Valor',b.valor)}${campo('venc','Vencimento','date',b.venc||cal(mes)+'-10')}</div>
   ${campo('cod','Código de barras / Pix (opcional)',undefined,b.codigo)}
   ${rodape(`salvar('/api/boletos${id?'/'+id:''}','${id?'PUT':'POST'}',{desc:v('desc'),valor:v('val'),venc:v('venc'),codigo:v('cod')})`,id,'boletos')}`)}
 function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Quanto a Victoria te deve em '+MESES[+mes.slice(5)-1],(db.tricount||{})[mes]||'')}
