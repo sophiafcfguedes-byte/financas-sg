@@ -116,6 +116,7 @@ nav svg{width:22px;height:22px}
 .catchips{padding-bottom:8px}.parc{border-bottom:1px solid var(--line)}.parc .item{border-bottom:0}
 .busca{display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;border-radius:14px;background:var(--card);border:1px solid var(--border);color:var(--muted)}
 .busca input{flex:1;border:0;background:transparent;font-size:16px;outline:none;color:var(--ink);min-width:0}
+.sairbtn{height:36px;padding:0 12px;border-radius:18px;border:1px solid var(--border);background:var(--card);color:var(--muted);font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
 .swipe{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}.swipe:last-child{border-bottom:0}
 .swipe-del{position:absolute;right:0;top:0;bottom:0;width:84px;border:0;background:#C0392B;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .swipe-fg{position:relative;background:var(--card);transition:transform .2s;border-bottom:0!important}
@@ -130,7 +131,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v42</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v43</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -249,7 +250,7 @@ function topo(titulo,sub){
 function telaInicio(c){
   const pct=c.renda?Math.max(0,Math.min(100,(c.gastoTotal+c.meta)/c.renda*100)):0;
   const hojeD=new Date(), noMes=cal(mes)===hoje().slice(0,7);
-  return `<div class="top"><div><small>Referência: ${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div class="mono" aria-hidden="true">${esc((db.mono||"SG")[0])}<b>${esc((db.mono||"SG").slice(1))}</b></div></div>
+  return `<div class="top"><div><small>Referência: ${mesNome(mes)}</small><h1>${db.nome?"Oi, "+esc(db.nome):"Olá!"}</h1></div><div style="display:flex;align-items:center;gap:8px"><button class="sairbtn" onclick="sair()" aria-label="Sair da conta"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>Sair</button><div class="mono" aria-hidden="true">${esc((db.mono||"SG")[0])}<b>${esc((db.mono||"SG").slice(1))}</b></div></div></div>
   <section class="hero">
     <div class="head"><span class="lbl">Sobra prevista no mês</span><button class="eye" aria-label="${oculto?'Mostrar valores':'Ocultar valores'}" onclick="olho()">${oculto?I.eyeOff:I.eye}</button></div>
     <span class="big">${hid(c.sobra)}</span>
@@ -384,7 +385,7 @@ function render(){
   {const fb=document.querySelector('.fab');if(fb){fb.setAttribute('aria-label',tab==='fixas'?'Adicionar despesa fixa':'Lançar gasto');fb.style.display=(tab==='fixas'||tab==='gastos')?'':'none'}}
   document.querySelector('nav').innerHTML='<div>'+Object.keys(nomes).map(k=>`<button class="${k===tab?'on':''}" onclick="ir('${k}')" ${k===tab?'aria-current="page"':''}>${I[k]}${nomes[k]}</button>`).join('')+'</div>';
 }
-async function sair(){await fetch('/api/logout');db=null;render()}
+async function sair(){if(!db.demo&&!confirm('Sair da conta?'))return;await fetch('/api/logout');db=null;tab='inicio';render();scrollTo(0,0)}
 function ir(t){tab=t;render();scrollTo(0,0);if(t==='inicio')carregar()}
 const MES_MIN='2026-10';// mês de referência: o que entra/sai neste mês do calendário é do mês passado
 const mesAtual=()=>{const d=new Date();return addMes(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),-1)};
