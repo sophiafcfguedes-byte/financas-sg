@@ -130,7 +130,7 @@ nav svg{width:22px;height:22px}
 </style>
 </head>
 <body>
-<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v41</span></div>
+<div class="wm" aria-hidden="true"><span class="sg">S<b>G</b></span><span class="fin">Finanças</span><span style="font-size:10px;letter-spacing:1px;color:var(--muted)">v42</span></div>
 <main id="app"></main>
 <script>
 const CATS=['Compras','Mercado','Saúde','Assinaturas','Caio','Delivery','Viagem','Carro','Bares'];
@@ -258,7 +258,10 @@ function telaInicio(c){
   </section>
   <button class="add" onclick="formRenda()">${c.renda?'+ Recebi dinheiro':'+ Registrar o que recebi'}</button>
   <div class="card"><div class="h"><button onclick="formConta()" style="border:0;background:none;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:2px"><b>Saldo em conta</b><small>Toque para atualizar o saldo</small></button><b style="font-size:20px;white-space:nowrap">${db.conta?hid(db.conta.saldo):'—'}</b></div>
-    <button class="btn" onclick="formGasteiConta()">− Gastei da conta</button></div>
+    <button class="btn" onclick="formGasteiConta()">− Gastei da conta</button>
+    ${(()=>{const gc=db.gastos.filter(g=>g.fonte==='conta').sort((a,b)=>b.data.localeCompare(a.data)||(b.id>a.id?1:-1));if(!gc.length)return'';return`<div class="sm" style="font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:4px">O que saiu da conta</div>
+    <div style="display:flex;flex-direction:column">${gc.slice(0,5).map(g=>`<button class="item" style="padding:10px 0" onclick="formGasto('${g.id}')"><div class="t"><b>${esc(g.desc)}</b><small>${esc(g.categoria||'Sem categoria')} · ${dataBR(g.data)}</small></div><span class="v" style="color:#C0392B">− ${brl(g.valor)}</span></button>`).join('')}</div>
+    ${gc.length>5?`<button class="btn ghost" onclick="verConta()">Ver todos (${gc.length})</button>`:''}`})()}</div>
   <div class="grid3" style="grid-template-columns:repeat(2,minmax(0,1fr))">
     <div class="tile"><span>Fixas</span><b>${brl(c.tFix)}</b></div>
     <div class="tile"><span>Variáveis</span><b>${brl(Math.max(0,c.tGas+c.tPar+c.tBol-c.tri))}</b></div>
@@ -461,6 +464,8 @@ function formTricount(){abrir(`<h2>Tricount Victoria</h2>${valorCampo('val','Qua
 function formSaldo(){abrir(`<h2>Total já guardado</h2>${valorCampo('val','Quanto você já tinha guardado antes de usar o app',db.saldoInicial||'')}
   <div class="sm">O total acumulado é esse valor + tudo que você registrar em "Registrar valor guardado".</div>
   ${rodape("salvar('/api/saldo','PUT',{valor:v('val')})")}`)}
+function verConta(){const gc=db.gastos.filter(g=>g.fonte==='conta').sort((a,b)=>b.data.localeCompare(a.data));
+  abrir(`<h2>O que saiu da conta</h2><div class="sm">Total: ${brl(gc.reduce((a,g)=>a+g.valor,0))}</div><div class="list">${gc.map(g=>`<div class="item"><div class="t"><b>${esc(g.desc)}</b><small>${esc(g.categoria||'Sem categoria')} · ${dataBR(g.data)}</small></div><span class="v">− ${brl(g.valor)}</span></div>`).join('')}</div><button class="btn ghost" onclick="fechar()">Fechar</button>`)}
 function formConta(){abrir(`<h2>Saldo em conta</h2>${valorCampo('val','Quanto tem na conta agora',db.conta?.saldo||'')}
   <div class="sm">Depois é só usar "Gastei da conta" que o app desconta sozinho.</div>
   ${rodape("salvar('/api/conta','PUT',{saldo:v('val')})")}`)}
