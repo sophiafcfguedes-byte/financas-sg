@@ -187,7 +187,6 @@ const server = http.createServer(async (req, res) => {
         if (nova.length < 4) return send(res, 400, { erro: 'A senha precisa ter pelo menos 4 caracteres' });
         if (nova === PIN || nova === DEMO_PIN) return send(res, 400, { erro: 'Escolha outra senha' });
         const us = lerUsuarios(); if (Object.entries(us).some(([id, u]) => id !== outro && confereSenha(u, nova))) return send(res, 400, { erro: 'Escolha outra senha' });
-        if (confereSenha(us[outro], nova)) return send(res, 400, { erro: 'Use uma senha diferente da inicial' });
         us[outro] = Object.assign(us[outro], hashSenha(nova), { trocar: false }); gravarUsuarios(us); usuario.trocar = false;
         return send(res, 200, comFlag(load()));
       }
