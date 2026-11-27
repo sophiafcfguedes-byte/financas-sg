@@ -219,6 +219,16 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true });
       }
 
+      if (coll === 'conta' && req.method === 'PUT') { // saldo em conta corrente
+        const b = await body(req); db.conta = { saldo: num(b.saldo), em: new Date().toISOString() }; save(db); return send(res, 200, comFlag(db));
+      }
+      if (coll === 'conta' && req.method === 'POST') { // gastei da conta: vira um gasto categorizado e sai do saldo
+        const b = await body(req); const v = num(b.valor); if (!v) return send(res, 400, { erro: 'Informe o valor' });
+        const hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+        db.gastos.push({ id: crypto.randomUUID().slice(0, 12), desc: str(b.desc) || str(b.categoria, 40) || 'Gasto', valor: v, data: /^\d{4}-\d{2}-\d{2}$/.test(b.data) ? b.data : hoje, categoria: str(b.categoria, 40), forma: 'Conta', fonte: 'conta' });
+        db.conta = db.conta || { saldo: 0 }; db.conta.saldo = Math.round((db.conta.saldo - v) * 100) / 100;
+        save(db); return send(res, 200, comFlag(db));
+      }
       if (coll === 'saldo' && req.method === 'PUT') { // quanto já tinha guardado antes de começar a usar o app
         const b = await body(req); db.saldoInicial = num(b.valor); save(db); return send(res, 200, comFlag(db));
       }
@@ -242,13 +252,16 @@ const server = http.createServer(async (req, res) => {
         if (i < 0) return send(res, 404, { erro: 'não encontrado' });
         if (req.method === 'PUT') {
           const antes = db[coll][i];
+          const valorAntes = antes.valor;
           db[coll][i] = Object.assign({ id }, CLEAN[coll](Object.assign({}, antes, await body(req))));
+          if (coll === 'gastos' && antes.fonte === 'conta' && db.conta && db[coll][i].valor !== valorAntes) db.conta.saldo = Math.round((db.conta.saldo + valorAntes - db[coll][i].valor) * 100) / 100;
           if (coll === 'gastos' && antes.categoria !== db[coll][i].categoria) {
             db[coll][i].catManual = true;
             db.aprendido = db.aprendido || {}; db.aprendido[require('./gmail.js').normDesc(db[coll][i].desc.replace(/ \(\d+\/\d+\)$/, ''))] = db[coll][i].categoria;
           }
           save(db); return send(res, 200, comFlag(db));
         }
+        if (req.method === 'DELETE' && coll === 'gastos' && db.gastos[i].fonte === 'conta' && db.conta) db.conta.saldo = Math.round((db.conta.saldo + db.gastos[i].valor) * 100) / 100; // devolve ao saldo
         if (req.method === 'DELETE' && coll === 'gastos') { // apagou o lançamento: some também da parcelada com o mesmo nome
           const n = normTit(db.gastos[i].desc);
           if (n.length >= 3) db.parceladas = db.parceladas.filter(p => { const t = normTit(p.desc); return !(t === n || (n.length >= 4 && t.length >= 4 && (t.includes(n) || n.includes(t)))); });
